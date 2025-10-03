@@ -21,6 +21,7 @@ const initialAppState: AppState = {
     supplierPayments: [],
     expenses: [],
     caixaBalance: 0,
+    totpSecret: undefined,
 };
 
 const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {

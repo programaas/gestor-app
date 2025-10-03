@@ -11,6 +11,7 @@ export interface AppState {
     supplierPayments: SupplierPayment[];
     expenses: Expense[];
     caixaBalance: number;
+    totpSecret?: string;
 }
 
 interface AppContextType extends AppState {
@@ -23,6 +24,8 @@ interface AppContextType extends AppState {
     addCustomerPayment: (customerId: string, amount: number, method: PaymentMethod, allocations: { supplierId: string; amount: number }[], expenseDetails?: { description: string }) => void;
     addSupplierPayment: (supplierId: string, amount: number, method: PaymentMethod) => void;
     addExpense: (description: string, amount: number) => void;
+    enableTotp: (secret: string) => void;
+    disableTotp: () => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -282,10 +285,21 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children, appData, set
         });
     };
 
+    const enableTotp = (secret: string) => {
+        updateState(prev => ({ ...prev, totpSecret: secret }));
+    };
+
+    const disableTotp = () => {
+        updateState(prev => {
+            const { totpSecret, ...rest } = prev;
+            return rest;
+        });
+    };
+
     return (
         <AppContext.Provider value={{
             ...appData,
-            addSupplier, addCustomer, addPurchase, updatePurchase, addSale, updateSale, addCustomerPayment, addSupplierPayment, addExpense
+            addSupplier, addCustomer, addPurchase, updatePurchase, addSale, updateSale, addCustomerPayment, addSupplierPayment, addExpense, enableTotp, disableTotp
         }}>
             {children}
         </AppContext.Provider>
