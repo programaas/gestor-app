@@ -1,13 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { useAppContext } from '../../context/AppContext.tsx';
-import Modal from '../ui/Modal.tsx';
-import { PlusCircle, Package, Edit } from 'lucide-react';
-import { Purchase } from '../../types.ts';
+
+import React, { useState } from 'react';
+import { useAppContext } from '../../context/AppContext';
+import Modal from '../ui/Modal';
+import { PlusCircle, Package } from 'lucide-react';
 
 const Purchases: React.FC = () => {
-    const { products, suppliers, addPurchase, updatePurchase, purchases } = useAppContext();
+    const { products, suppliers, addPurchase, purchases } = useAppContext();
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [editingPurchase, setEditingPurchase] = useState<Purchase | null>(null);
 
     const [selectedProduct, setSelectedProduct] = useState<string>('');
     const [newProductName, setNewProductName] = useState('');
@@ -15,17 +14,6 @@ const Purchases: React.FC = () => {
     const [selectedSupplier, setSelectedSupplier] = useState<string>('');
     const [quantity, setQuantity] = useState<number>(1);
     const [unitPrice, setUnitPrice] = useState<number>(0);
-
-    useEffect(() => {
-        if (editingPurchase) {
-            setSelectedProduct(editingPurchase.productId);
-            setSelectedSupplier(editingPurchase.supplierId);
-            setQuantity(editingPurchase.quantity);
-            setUnitPrice(editingPurchase.unitPrice);
-            setIsNewProduct(false); // Can't edit to a new product
-        }
-    }, [editingPurchase]);
-
 
     const resetForm = () => {
         setSelectedProduct('');
@@ -35,32 +23,17 @@ const Purchases: React.FC = () => {
         setQuantity(1);
         setUnitPrice(0);
         setIsModalOpen(false);
-        setEditingPurchase(null);
-    };
-    
-    const handleOpenEditModal = (purchase: Purchase) => {
-        setEditingPurchase(purchase);
-        setIsModalOpen(true);
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleAddPurchase = (e: React.FormEvent) => {
         e.preventDefault();
         if ((!isNewProduct && !selectedProduct) || !selectedSupplier || quantity <= 0 || unitPrice < 0) {
             alert('Por favor, preencha todos os campos corretamente.');
             return;
         }
 
-        if (editingPurchase) {
-            updatePurchase(editingPurchase.id, {
-                productId: selectedProduct,
-                supplierId: selectedSupplier,
-                quantity,
-                unitPrice
-            });
-        } else {
-            const productIdentifier = isNewProduct ? { name: newProductName } : selectedProduct;
-            addPurchase(productIdentifier, selectedSupplier, quantity, unitPrice);
-        }
+        const productIdentifier = isNewProduct ? { name: newProductName } : selectedProduct;
+        addPurchase(productIdentifier, selectedSupplier, quantity, unitPrice);
         resetForm();
     };
 
@@ -86,7 +59,6 @@ const Purchases: React.FC = () => {
                             <th className="p-4 font-semibold">Qtd.</th>
                             <th className="p-4 font-semibold">Preço Unit.</th>
                             <th className="p-4 font-semibold">Total</th>
-                            <th className="p-4 font-semibold text-right">Ações</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -101,11 +73,6 @@ const Purchases: React.FC = () => {
                                     <td className="p-4">{purchase.quantity}</td>
                                     <td className="p-4">{formatCurrency(purchase.unitPrice)}</td>
                                     <td className="p-4">{formatCurrency(purchase.quantity * purchase.unitPrice)}</td>
-                                    <td className="p-4 text-right">
-                                        <button onClick={() => handleOpenEditModal(purchase)} className="text-indigo-600 dark:text-indigo-400 hover:underline p-1">
-                                            <Edit size={16} />
-                                        </button>
-                                    </td>
                                 </tr>
                             )
                         })}
@@ -113,11 +80,11 @@ const Purchases: React.FC = () => {
                 </table>
             </div>
 
-            <Modal isOpen={isModalOpen} onClose={resetForm} title={editingPurchase ? "Editar Compra" : "Registrar Nova Compra"}>
-                <form onSubmit={handleSubmit} className="space-y-4">
+            <Modal isOpen={isModalOpen} onClose={resetForm} title="Registrar Nova Compra">
+                <form onSubmit={handleAddPurchase} className="space-y-4">
                      <div>
                         <label className="flex items-center">
-                            <input type="checkbox" checked={isNewProduct} onChange={e => setIsNewProduct(e.target.checked)} className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded" disabled={!!editingPurchase} />
+                            <input type="checkbox" checked={isNewProduct} onChange={e => setIsNewProduct(e.target.checked)} className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded" />
                             <span className="ml-2 text-sm">Cadastrar novo produto</span>
                         </label>
                     </div>
@@ -153,7 +120,7 @@ const Purchases: React.FC = () => {
                         </div>
                     </div>
                     <div className="flex justify-end pt-4">
-                        <button type="submit" className="bg-indigo-500 text-white px-4 py-2 rounded-lg hover:bg-indigo-600">{editingPurchase ? 'Salvar Alterações' : 'Adicionar Compra'}</button>
+                        <button type="submit" className="bg-indigo-500 text-white px-4 py-2 rounded-lg hover:bg-indigo-600">Adicionar Compra</button>
                     </div>
                 </form>
             </Modal>

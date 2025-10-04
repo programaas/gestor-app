@@ -1,7 +1,7 @@
+
 export interface Supplier {
     id: string;
     name: string;
-    balance: number;
 }
 
 export interface Customer {
@@ -21,7 +21,6 @@ export enum PaymentMethod {
     Cash = 'À Vista',
     Check = 'Cheque',
     Pix = 'Pix',
-    Caixa = 'Caixa',
 }
 
 export interface Purchase {
@@ -33,22 +32,14 @@ export interface Purchase {
     date: string;
 }
 
-export interface SaleItem {
-    productId: string;
-    quantity: number;
-    unitPrice: number; // Sale price
-    supplierId: string;
-    costPrice: number; // Purchase price
-}
-
 export interface Sale {
     id: string;
+    productId: string;
     customerId: string;
-    items: SaleItem[];
-    totalAmount: number;
+    quantity: number;
+    unitPrice: number;
     date: string;
 }
-
 
 export interface CustomerPayment {
     id: string;
@@ -64,16 +55,6 @@ export interface SupplierPayment {
     supplierId: string;
     amount: number;
     date: string;
-    method: PaymentMethod;
     origin: 'direct' | 'customer_payment';
     customerPaymentId?: string;
-}
-
-export interface Expense {
-    id: string;
-    description: string;
-    amount: number;
-    date: string;
-    source: 'Caixa' | 'Pagamento de Cliente';
-    customerPaymentId?: string; // Link to the customer payment if applicable
 }
