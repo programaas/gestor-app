@@ -1,7 +1,7 @@
 
 import React, { createContext, useContext, ReactNode } from 'react';
 import { db } from '../firebase';
-import { collection, doc, runTransaction } from 'firebase/firestore';
+import { collection, doc, runTransaction, deleteDoc } from 'firebase/firestore';
 import useFirestore from '../hooks/useFirestore';
 import { Supplier, Customer, Product, Purchase, Sale, CustomerPayment, PaymentMethod } from '../types';
 
@@ -23,7 +23,9 @@ interface AppContextType {
     isLoading: boolean;
     addSupplier: (name: string) => Promise<void>;
     addCustomer: (name: string) => Promise<void>;
-    addPurchase: (productId: string | { name: string }, supplierId: string, quantity: number, unitPrice: number) => Promise<void>;
+    addPurchase: (productIdentifier: string | { name: string }, supplierId: string, quantity: number, unitPrice: number) => Promise<void>;
+    updatePurchase: (id: string, productIdentifier: string | { name: string }, supplierId: string, quantity: number, unitPrice: number) => Promise<void>;
+    deletePurchase: (id: string) => Promise<void>;
     addSale: (productId: string, customerId: string, quantity: number, unitPrice: number) => Promise<void>;
     addCustomerPayment: (customerId: string, amount: number, method: PaymentMethod, allocations: { supplierId: string; amount: number }[]) => Promise<void>;
 }
@@ -34,8 +36,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     // Usando o hook useFirestore para cada coleção
     const { data: suppliers, loading: l1, addDocument: addSupplierDoc } = useFirestore<BaseSupplier>('suppliers');
     const { data: customers, loading: l2, addDocument: addCustomerDoc } = useFirestore<BaseCustomer>('customers');
-    const { data: products, loading: l3 } = useFirestore<BaseProduct>('products');
-    const { data: purchases, loading: l4 } = useFirestore<BasePurchase>('purchases');
+    const { data: products, loading: l3, addDocument: addProductDoc } = useFirestore<BaseProduct>('products'); // Added addProductDoc
+    const { data: purchases, loading: l4, updateDocument: updatePurchaseDoc, deleteDocument: deletePurchaseDoc } = useFirestore<BasePurchase>('purchases'); // Added update/delete docs for purchases
     const { data: sales, loading: l5 } = useFirestore<BaseSale>('sales');
     const { data: customerPayments, loading: l6 } = useFirestore<BaseCustomerPayment>('customerPayments');
 
@@ -100,6 +102,140 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         } catch (e) {
             console.error("Erro na transação de compra: ", e);
             alert(`Erro ao registrar compra: ${e instanceof Error ? e.message : String(e)}`);
+        }
+    };
+
+    const updatePurchase = async (id: string, productIdentifier: string | { name: string }, supplierId: string, quantity: number, unitPrice: number) => {
+        try {
+            await runTransaction(db, async (transaction) => {
+                const purchaseRef = doc(db, 'purchases', id);
+                const oldPurchaseDoc = await transaction.get(purchaseRef);
+
+                if (!oldPurchaseDoc.exists()) {
+                    throw new Error("Compra não encontrada para atualização!");
+                }
+
+                const oldPurchase = oldPurchaseDoc.data() as Purchase;
+                const oldProductId = oldPurchase.productId;
+                const oldQuantity = oldPurchase.quantity;
+                const oldUnitPrice = oldPurchase.unitPrice;
+
+                // Reverter impacto da compra antiga no produto
+                const oldProductRef = doc(db, 'products', oldProductId);
+                const oldProductDoc = await transaction.get(oldProductRef);
+                if (!oldProductDoc.exists()) {
+                    throw new Error("Produto da compra antiga não encontrado!");
+                }
+                const oldProductData = oldProductDoc.data() as Product;
+                const oldProductCurrentQuantity = oldProductData.quantity;
+                const oldProductCurrentAvgCost = oldProductData.averageCost;
+
+                // Calcular o total de custo atual do produto (antes da reversão)
+                const oldProductTotalCost = oldProductCurrentQuantity * oldProductCurrentAvgCost;
+                // Remover o custo e quantidade da compra antiga
+                const productQuantityAfterRevert = oldProductCurrentQuantity - oldQuantity;
+                const productTotalCostAfterRevert = oldProductTotalCost - (oldQuantity * oldUnitPrice);
+                // Novo custo médio após a reversão
+                const productAvgCostAfterRevert = productQuantityAfterRevert > 0 ? productTotalCostAfterRevert / productQuantityAfterRevert : 0;
+
+                // Aplicar impacto da nova compra
+                let newProductId: string = '';
+                let newProductRef;
+                let newProductInitialQuantity = 0; // Quantity before new purchase is applied
+                let newProductInitialAvgCost = 0; // Avg cost before new purchase is applied
+
+                if (typeof productIdentifier === 'object') { // Novo produto
+                    newProductRef = doc(collection(db, "products"));
+                    newProductId = newProductRef.id;
+                    transaction.set(newProductRef, {
+                        name: productIdentifier.name,
+                        quantity: 0,
+                        averageCost: 0
+                    });
+                } else { // Produto existente
+                    newProductId = productIdentifier;
+                    newProductRef = doc(db, 'products', newProductId);
+                    const newProductDoc = await transaction.get(newProductRef);
+                    if (newProductDoc.exists()) {
+                        const newProductData = newProductDoc.data() as Product;
+                        newProductInitialQuantity = newProductData.quantity;
+                        newProductInitialAvgCost = newProductData.averageCost;
+                    } else {
+                        throw new Error("Novo produto não encontrado!");
+                    }
+                }
+
+                // Update the old product
+                transaction.update(oldProductRef, {
+                    quantity: productQuantityAfterRevert,
+                    averageCost: productAvgCostAfterRevert
+                });
+
+                // Update the new product (could be the same as old product)
+                const newProductTotalQuantity = productQuantityAfterRevert + quantity;
+                const newProductTotalCost = (productTotalCostAfterRevert) + (quantity * unitPrice);
+                const newProductAverageCost = newProductTotalQuantity > 0 ? newProductTotalCost / newProductTotalQuantity : 0;
+
+                transaction.update(newProductRef, {
+                    quantity: newProductTotalQuantity,
+                    averageCost: newProductAverageCost
+                });
+
+                // Atualizar a própria compra
+                transaction.update(purchaseRef, {
+                    productId: newProductId,
+                    supplierId,
+                    quantity,
+                    unitPrice,
+                    date: new Date().toISOString()
+                });
+            });
+        } catch (e) {
+            console.error("Erro na transação de atualização de compra: ", e);
+            alert(`Erro ao atualizar compra: ${e instanceof Error ? e.message : String(e)}`);
+        }
+    };
+
+    const deletePurchase = async (id: string) => {
+        try {
+            await runTransaction(db, async (transaction) => {
+                const purchaseRef = doc(db, 'purchases', id);
+                const purchaseDoc = await transaction.get(purchaseRef);
+
+                if (!purchaseDoc.exists()) {
+                    throw new Error("Compra não encontrada para exclusão!");
+                }
+
+                const purchaseToDelete = purchaseDoc.data() as Purchase;
+                const productId = purchaseToDelete.productId;
+                const quantityToDelete = purchaseToDelete.quantity;
+                const unitPriceToDelete = purchaseToDelete.unitPrice;
+
+                const productRef = doc(db, 'products', productId);
+                const productDoc = await transaction.get(productRef);
+
+                if (!productDoc.exists()) {
+                    throw new Error("Produto associado à compra não encontrado!");
+                }
+
+                const productData = productDoc.data() as Product;
+                const currentQuantity = productData.quantity;
+                const currentAvgCost = productData.averageCost;
+
+                const newTotalQuantity = currentQuantity - quantityToDelete;
+                const newTotalCost = (currentAvgCost * currentQuantity) - (unitPriceToDelete * quantityToDelete);
+                const newAverageCost = newTotalQuantity > 0 ? newTotalCost / newTotalQuantity : 0;
+
+                transaction.update(productRef, {
+                    quantity: newTotalQuantity,
+                    averageCost: newAverageCost
+                });
+
+                transaction.delete(purchaseRef);
+            });
+        } catch (e) {
+            console.error("Erro na transação de exclusão de compra: ", e);
+            alert(`Erro ao excluir compra: ${e instanceof Error ? e.message : String(e)}`);
         }
     };
 
@@ -180,12 +316,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             addSupplier,
             addCustomer,
             addPurchase,
+            updatePurchase,
+            deletePurchase,
             addSale,
             addCustomerPayment
         }}>
             {children}
         </AppContext.Provider>
     );
+    
 };
 
 export const useAppContext = () => {
