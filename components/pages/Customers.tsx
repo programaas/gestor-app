@@ -3,13 +3,16 @@ import React, { useState } from 'react';
 import { useAppContext } from '../../context/AppContext';
 import { Customer, PaymentMethod } from '../../types';
 import Modal from '../ui/Modal';
-import { PlusCircle, User } from 'lucide-react';
+import { PlusCircle, User, Edit, Trash2 } from 'lucide-react';
 
 const Customers: React.FC = () => {
-    const { customers, addCustomer, addCustomerPayment, suppliers, sales, products } = useAppContext();
+    const { customers, addCustomer, updateCustomer, deleteCustomer, addCustomerPayment, suppliers, sales, products } = useAppContext();
     const [isAddModalOpen, setAddModalOpen] = useState(false);
     const [isPayModalOpen, setPayModalOpen] = useState(false);
     const [isDetailModalOpen, setDetailModalOpen] = useState(false);
+    const [isEditModalOpen, setEditModalOpen] = useState(false); // New state for edit modal
+    const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null); // New state for customer being edited
+
     const [newName, setNewName] = useState('');
     const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
     const [paymentAmount, setPaymentAmount] = useState<number>(0);
@@ -35,6 +38,31 @@ const Customers: React.FC = () => {
     const handleOpenDetailModal = (customer: Customer) => {
         setSelectedCustomer(customer);
         setDetailModalOpen(true);
+    };
+
+    // New handler to open edit modal
+    const handleOpenEditModal = (customer: Customer) => {
+        setEditingCustomer(customer);
+        setNewName(customer.name); // Pre-fill the form with the current name
+        setEditModalOpen(true);
+    };
+
+    // New handler to update customer
+    const handleUpdateCustomer = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (editingCustomer && newName.trim()) {
+            updateCustomer(editingCustomer.id, newName.trim());
+            setEditModalOpen(false);
+            setEditingCustomer(null);
+            setNewName('');
+        }
+    };
+
+    // New handler to delete customer
+    const handleDeleteCustomer = (customerId: string) => {
+        if (window.confirm('Tem certeza que deseja excluir este cliente?')) {
+            deleteCustomer(customerId);
+        }
     };
 
     const handleAddPayment = (e: React.FormEvent) => {
@@ -90,8 +118,10 @@ const Customers: React.FC = () => {
                             <tr key={customer.id} className="border-b dark:border-gray-700">
                                 <td className="p-4 flex items-center"><User size={16} className="mr-2 text-gray-500" />{customer.name}</td>
                                 <td className={`p-4 font-medium ${customer.balance > 0 ? 'text-red-500' : 'text-green-500'}`}>{formatCurrency(customer.balance)}</td>
-                                <td className="p-4 text-right">
+                                <td className="p-4 text-right flex items-center justify-end">
                                     <button onClick={() => handleOpenDetailModal(customer)} className="text-indigo-600 dark:text-indigo-400 hover:underline mr-4">Detalhes</button>
+                                    <button onClick={() => handleOpenEditModal(customer)} className="text-blue-600 dark:text-blue-400 hover:underline mr-4 flex items-center"><Edit size={16} className="mr-1" /> Editar</button>
+                                    <button onClick={() => handleDeleteCustomer(customer.id)} className="text-red-600 dark:text-red-400 hover:underline mr-4 flex items-center"><Trash2 size={16} className="mr-1" /> Excluir</button>
                                     <button onClick={() => handleOpenPayModal(customer)} className="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600 text-sm">Pagar</button>
                                 </td>
                             </tr>
@@ -108,6 +138,19 @@ const Customers: React.FC = () => {
                     </div>
                     <div className="flex justify-end">
                         <button type="submit" className="bg-indigo-500 text-white px-4 py-2 rounded-lg hover:bg-indigo-600">Salvar</button>
+                    </div>
+                </form>
+            </Modal>
+
+            {/* Edit Customer Modal */}
+            <Modal isOpen={isEditModalOpen} onClose={() => setEditModalOpen(false)} title={`Editar Cliente: ${editingCustomer?.name}`}>
+                <form onSubmit={handleUpdateCustomer}>
+                    <div className="mb-4">
+                        <label htmlFor="edit-name" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Nome do Cliente</label>
+                        <input type="text" id="edit-name" value={newName} onChange={e => setNewName(e.target.value)} className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" required />
+                    </div>
+                    <div className="flex justify-end">
+                        <button type="submit" className="bg-indigo-500 text-white px-4 py-2 rounded-lg hover:bg-indigo-600">Atualizar</button>
                     </div>
                 </form>
             </Modal>

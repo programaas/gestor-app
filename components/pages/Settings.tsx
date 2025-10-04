@@ -1,13 +1,12 @@
 import React, { useRef } from 'react';
 import { Download, Upload, AlertTriangle } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext.tsx';
-import { AppState } from '../../context/AppContext.tsx';
 
 interface SettingsProps {
-    handleLogout: () => void;
+    // handleLogout: () => void; // Removido, pois não é usado diretamente aqui
 }
 
-const Settings: React.FC<SettingsProps> = ({ handleLogout }) => {
+const Settings: React.FC<SettingsProps> = () => {
     const appData = useAppContext();
     const { setAllData } = appData;
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -56,7 +55,7 @@ const Settings: React.FC<SettingsProps> = ({ handleLogout }) => {
                 try {
                     const content = e.target?.result as string;
                     if (content) {
-                        const importedData: AppState = JSON.parse(content);
+                        const importedData: any = JSON.parse(content); // Removed AppState type and used any
                         // Basic validation
                         if (importedData.customers && importedData.products) {
                             setAllData(importedData);

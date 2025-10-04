@@ -36,8 +36,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     // Usando o hook useFirestore para cada coleção
     const { data: suppliers, loading: l1, addDocument: addSupplierDoc } = useFirestore<BaseSupplier>('suppliers');
     const { data: customers, loading: l2, addDocument: addCustomerDoc } = useFirestore<BaseCustomer>('customers');
-    const { data: products, loading: l3, addDocument: addProductDoc } = useFirestore<BaseProduct>('products'); // Added addProductDoc
-    const { data: purchases, loading: l4, updateDocument: updatePurchaseDoc, deleteDocument: deletePurchaseDoc } = useFirestore<BasePurchase>('purchases'); // Added update/delete docs for purchases
+    const { data: products, loading: l3, addDocument: addProductDoc } = useFirestore<BaseProduct>('products');
+    const { data: purchases, loading: l4, updateDocument: updatePurchaseDoc, deleteDocument: deletePurchaseDoc } = useFirestore<BasePurchase>('purchases');
     const { data: sales, loading: l5 } = useFirestore<BaseSale>('sales');
     const { data: customerPayments, loading: l6 } = useFirestore<BaseCustomerPayment>('customerPayments');
 
@@ -77,7 +77,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                     throw new Error("Produto não encontrado!");
                 }
                 
-                const currentData = productDoc.data() || { quantity: 0, averageCost: 0 };
+                const currentData = productDoc.data() as Product || { quantity: 0, averageCost: 0 };
                 const currentQuantity = currentData.quantity;
                 const currentAvgCost = currentData.averageCost;
 
@@ -130,19 +130,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 const oldProductCurrentQuantity = oldProductData.quantity;
                 const oldProductCurrentAvgCost = oldProductData.averageCost;
 
-                // Calcular o total de custo atual do produto (antes da reversão)
-                const oldProductTotalCost = oldProductCurrentQuantity * oldProductCurrentAvgCost;
-                // Remover o custo e quantidade da compra antiga
+                const productTotalCostBeforeRevert = oldProductCurrentQuantity * oldProductCurrentAvgCost;
                 const productQuantityAfterRevert = oldProductCurrentQuantity - oldQuantity;
-                const productTotalCostAfterRevert = oldProductTotalCost - (oldQuantity * oldUnitPrice);
-                // Novo custo médio após a reversão
+                const productTotalCostAfterRevert = productTotalCostBeforeRevert - (oldQuantity * oldUnitPrice);
                 const productAvgCostAfterRevert = productQuantityAfterRevert > 0 ? productTotalCostAfterRevert / productQuantityAfterRevert : 0;
 
-                // Aplicar impacto da nova compra
-                let newProductId: string = '';
+                // Determine the new product (can be an existing one or a newly created one)
+                let newProductId: string;
                 let newProductRef;
-                let newProductInitialQuantity = 0; // Quantity before new purchase is applied
-                let newProductInitialAvgCost = 0; // Avg cost before new purchase is applied
+                let newProductCurrentQuantity: number = 0; // Current quantity of the *new* product before applying *this* purchase
+                let newProductCurrentAvgCost: number = 0; // Current avg cost of the *new* product before applying *this* purchase
 
                 if (typeof productIdentifier === 'object') { // Novo produto
                     newProductRef = doc(collection(db, "products"));
@@ -155,30 +152,44 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 } else { // Produto existente
                     newProductId = productIdentifier;
                     newProductRef = doc(db, 'products', newProductId);
-                    const newProductDoc = await transaction.get(newProductRef);
-                    if (newProductDoc.exists()) {
-                        const newProductData = newProductDoc.data() as Product;
-                        newProductInitialQuantity = newProductData.quantity;
-                        newProductInitialAvgCost = newProductData.averageCost;
+                    const currentNewProductDoc = await transaction.get(newProductRef);
+                    if (currentNewProductDoc.exists()) {
+                        const currentNewProductData = currentNewProductDoc.data() as Product;
+                        newProductCurrentQuantity = currentNewProductData.quantity;
+                        newProductCurrentAvgCost = currentNewProductData.averageCost;
                     } else {
+                        // If it's an existing product but not found, it's an error.
                         throw new Error("Novo produto não encontrado!");
                     }
                 }
 
-                // Update the old product
-                transaction.update(oldProductRef, {
-                    quantity: productQuantityAfterRevert,
-                    averageCost: productAvgCostAfterRevert
-                });
+                // Update the old product if it's different from the new product
+                if (oldProductId !== newProductId) {
+                    transaction.update(oldProductRef, {
+                        quantity: productQuantityAfterRevert,
+                        averageCost: productAvgCostAfterRevert
+                    });
+                }
 
-                // Update the new product (could be the same as old product)
-                const newProductTotalQuantity = productQuantityAfterRevert + quantity;
-                const newProductTotalCost = (productTotalCostAfterRevert) + (quantity * unitPrice);
-                const newProductAverageCost = newProductTotalQuantity > 0 ? newProductTotalCost / newProductTotalQuantity : 0;
+                // Apply the impact of the new purchase to the (potentially new) product
+                let finalNewProductTotalQuantity: number;
+                let finalNewProductTotalCost: number;
+
+                if (oldProductId === newProductId) {
+                    // If the product is the same, apply the new purchase's impact to the reverted state of this product
+                    finalNewProductTotalQuantity = productQuantityAfterRevert + quantity;
+                    finalNewProductTotalCost = productTotalCostAfterRevert + (quantity * unitPrice);
+                } else {
+                    // If the product is different, apply the new purchase's impact to the current state of the *new* product
+                    finalNewProductTotalQuantity = newProductCurrentQuantity + quantity;
+                    finalNewProductTotalCost = (newProductCurrentQuantity * newProductCurrentAvgCost) + (quantity * unitPrice);
+                }
+
+                const finalNewProductAverageCost = finalNewProductTotalQuantity > 0 ? finalNewProductTotalCost / finalNewProductTotalQuantity : 0;
 
                 transaction.update(newProductRef, {
-                    quantity: newProductTotalQuantity,
-                    averageCost: newProductAverageCost
+                    quantity: finalNewProductTotalQuantity,
+                    averageCost: finalNewProductAverageCost
                 });
 
                 // Atualizar a própria compra
@@ -246,7 +257,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 const customerRef = doc(db, 'customers', customerId);
 
                 const productDoc = await transaction.get(productRef);
-                if (!productDoc.exists() || productDoc.data().quantity < quantity) {
+                if (!productDoc.exists() || (productDoc.data() as Product).quantity < quantity) {
                     throw new Error('Estoque insuficiente!');
                 }
                 
@@ -255,7 +266,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                     throw new Error('Cliente não encontrado!');
                 }
 
-                const newQuantity = productDoc.data().quantity - quantity;
+                const newQuantity = (productDoc.data() as Product).quantity - quantity;
                 transaction.update(productRef, { quantity: newQuantity });
 
                 const newBalance = customerDoc.data().balance + (quantity * unitPrice);
