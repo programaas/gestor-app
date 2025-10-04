@@ -7,6 +7,7 @@ import Suppliers from './components/pages/Suppliers';
 import Inventory from './components/pages/Inventory';
 import Purchases from './components/pages/Purchases';
 import Sales from './components/pages/Sales';
+import Settings from './components/pages/Settings'; // Import the Settings component
 import { AppProvider, useAppContext } from './context/AppContext';
 import LoadingSpinner from './components/ui/LoadingSpinner';
 import Auth from './components/auth/Auth'; // Importa o componente de autenticação
@@ -37,8 +38,8 @@ const MainApp: React.FC = () => {
                 return <Customers />;
             case 'suppliers':
                 return <Suppliers />;
-            // case 'settings': // Se você tiver um componente de configurações, descomente e importe-o
-            //     return <Settings />;
+            case 'settings': // Render the Settings component
+                return <Settings />;
             default:
                 return <Dashboard />;
         }
@@ -62,6 +63,11 @@ const App: React.FC = () => {
         const unsubscribe = auth.onAuthStateChanged((currentUser) => {
             setUser(currentUser);
             setAuthLoading(false);
+
+            if (currentUser) {
+                const timestamp = new Date().toISOString();
+                console.log(`[ACCESS LOG] User logged in: ${currentUser.email || currentUser.uid} at ${timestamp}`);
+            }
         });
         return () => unsubscribe();
     }, []);
