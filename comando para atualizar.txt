@@ -1,0 +1,11 @@
+A Melhor Parte: Atualizações Automáticas
+A partir de agora, toda vez que você fizer uma alteração no código e enviar para o GitHub (usando os comandos 
+
+git add .
+
+git commit -m "minha atualização"
+
+git push
+
+
+), a Vercel irá detectar a mudança automaticamente e atualizará seu site no ar em menos de um minuto. Você não precisa fazer mais nada

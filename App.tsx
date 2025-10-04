@@ -7,69 +7,72 @@ import Inventory from './components/pages/Inventory.tsx';
 import Purchases from './components/pages/Purchases.tsx';
 import Sales from './components/pages/Sales.tsx';
 import Expenses from './components/pages/Expenses.tsx';
-import Login from './components/auth/Login.tsx';
-import TotpInput from './components/auth/TotpInput.tsx';
+import Auth from './components/auth/Auth.tsx';
 import Settings from './components/pages/Settings.tsx';
 import { AppProvider, AppState } from './context/AppContext.tsx';
-
-// This is the shape of our entire application's data
-import { Supplier, Customer, Product, Purchase, Sale, CustomerPayment, SupplierPayment, Expense } from './types.ts';
+import { auth, firestore } from './firebase/config.ts';
+import { User } from 'firebase/auth';
+import { Loader2 } from 'lucide-react';
 
 export type View = 'dashboard' | 'sales' | 'purchases' | 'inventory' | 'customers' | 'suppliers' | 'expenses' | 'settings';
 
-// Make CryptoJS available from the global scope (since it's added via CDN)
-declare var CryptoJS: any;
-
-export const ENCRYPTED_DATA_KEY = 'app_data_encrypted';
+const initialAppState: AppState = {
+    suppliers: [],
+    customers: [],
+    products: [],
+    purchases: [],
+    sales: [],
+    customerPayments: [],
+    supplierPayments: [],
+    expenses: [],
+    caixaBalance: 0,
+};
 
 const App: React.FC = () => {
-    const [isAuthenticated, setIsAuthenticated] = useState(false);
-    const [masterPassword, setMasterPassword] = useState('');
+    const [user, setUser] = useState<User | null>(null);
     const [appData, setAppData] = useState<AppState | null>(null);
     const [currentView, setCurrentView] = useState<View>('dashboard');
-    
-    // State to manage the 2FA (TOTP) step
-    const [pendingData, setPendingData] = useState<{data: AppState, pass: string} | null>(null);
+    const [loading, setLoading] = useState(true);
 
-    // Effect to encrypt and save data whenever it changes
     useEffect(() => {
-        if (appData && masterPassword) {
-            try {
-                const encryptedData = CryptoJS.AES.encrypt(JSON.stringify(appData), masterPassword).toString();
-                localStorage.setItem(ENCRYPTED_DATA_KEY, encryptedData);
-            } catch (error) {
-                console.error("Failed to encrypt or save data:", error);
+        const unsubscribe = auth.onAuthStateChanged(async (firebaseUser) => {
+            if (firebaseUser) {
+                setUser(firebaseUser);
+                // Fetch user data from Firestore
+                const userDocRef = firestore.collection('users').doc(firebaseUser.uid);
+                const doc = await userDocRef.get();
+                if (doc.exists) {
+                    setAppData(doc.data() as AppState);
+                } else {
+                    // First login, create the initial document
+                    await userDocRef.set(initialAppState);
+                    setAppData(initialAppState);
+                }
+            } else {
+                setUser(null);
+                setAppData(null);
             }
-        }
-    }, [appData, masterPassword]);
+            setLoading(false);
+        });
+        return () => unsubscribe();
+    }, []);
 
-    const handleLoginSuccess = (decryptedData: AppState, password: string) => {
-        // If TOTP is enabled, don't log in yet. Move to the TOTP verification step.
-        if (decryptedData.totpSecret) {
-            setPendingData({ data: decryptedData, pass: password });
-        } else {
-            // If TOTP is not enabled, log in directly.
-            setAppData(decryptedData);
-            setMasterPassword(password);
-            setIsAuthenticated(true);
-        }
-    };
-
-    const handleTotpVerificationSuccess = () => {
-        if (pendingData) {
-            setAppData(pendingData.data);
-            setMasterPassword(pendingData.pass);
-            setIsAuthenticated(true);
-            setPendingData(null); // Clear pending data
+    const updateFirestore = async (newState: AppState) => {
+        if (user) {
+            try {
+                const userDocRef = firestore.collection('users').doc(user.uid);
+                await userDocRef.set(newState);
+            } catch (error) {
+                console.error("Error updating Firestore:", error);
+                alert("Não foi possível salvar os dados. Verifique sua conexão.");
+            }
         }
     };
     
     const handleLogout = () => {
-        setIsAuthenticated(false);
-        setMasterPassword('');
-        setAppData(null);
-        setPendingData(null);
-        setCurrentView('dashboard'); // Reset view on logout
+        auth.signOut().then(() => {
+            setCurrentView('dashboard');
+        });
     };
 
     const renderView = () => {
@@ -86,22 +89,20 @@ const App: React.FC = () => {
         }
     };
 
-    if (pendingData) {
+    if (loading) {
         return (
-            <TotpInput
-                secret={pendingData.data.totpSecret!}
-                onVerifySuccess={handleTotpVerificationSuccess}
-                onBack={() => setPendingData(null)}
-            />
+            <div className="flex h-screen w-full items-center justify-center bg-gray-100 dark:bg-gray-900">
+                <Loader2 className="h-12 w-12 animate-spin text-indigo-500" />
+            </div>
         );
     }
 
-    if (!isAuthenticated || !appData) {
-        return <Login onLoginSuccess={handleLoginSuccess} />;
+    if (!user || appData === null) {
+        return <Auth />;
     }
 
     return (
-        <AppProvider appData={appData} setAppData={setAppData}>
+        <AppProvider appData={appData} setAppData={setAppData} updateFirestore={updateFirestore}>
             <div className="flex h-screen bg-gray-100 dark:bg-gray-900 font-sans text-gray-900 dark:text-gray-200">
                 <Sidebar currentView={currentView} setCurrentView={setCurrentView} handleLogout={handleLogout} />
                 <main className="flex-1 p-6 lg:p-8 overflow-y-auto">

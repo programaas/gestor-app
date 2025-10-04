@@ -11,7 +11,6 @@ export interface AppState {
     supplierPayments: SupplierPayment[];
     expenses: Expense[];
     caixaBalance: number;
-    totpSecret?: string;
 }
 
 interface AppContextType extends AppState {
@@ -24,8 +23,7 @@ interface AppContextType extends AppState {
     addCustomerPayment: (customerId: string, amount: number, method: PaymentMethod, allocations: { supplierId: string; amount: number }[], expenseDetails?: { description: string }) => void;
     addSupplierPayment: (supplierId: string, amount: number, method: PaymentMethod) => void;
     addExpense: (description: string, amount: number) => void;
-    enableTotp: (secret: string) => void;
-    disableTotp: () => void;
+    setAllData: (data: AppState) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -34,13 +32,21 @@ interface AppProviderProps {
     children: ReactNode;
     appData: AppState;
     setAppData: React.Dispatch<React.SetStateAction<AppState | null>>;
+    updateFirestore: (newState: AppState) => Promise<void>;
 }
 
-export const AppProvider: React.FC<AppProviderProps> = ({ children, appData, setAppData }) => {
+export const AppProvider: React.FC<AppProviderProps> = ({ children, appData, setAppData, updateFirestore }) => {
 
     const updateState = (updater: (prevState: AppState) => AppState) => {
-        setAppData(prevState => prevState ? updater(prevState) : null);
+        const newState = updater(appData);
+        setAppData(newState);
+        updateFirestore(newState);
     };
+    
+    const setAllData = (data: AppState) => {
+        setAppData(data);
+        updateFirestore(data);
+    }
 
     const addSupplier = (name: string) => {
         const newSupplier: Supplier = { id: crypto.randomUUID(), name, balance: 0 };
@@ -285,21 +291,10 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children, appData, set
         });
     };
 
-    const enableTotp = (secret: string) => {
-        updateState(prev => ({ ...prev, totpSecret: secret }));
-    };
-
-    const disableTotp = () => {
-        updateState(prev => {
-            const { totpSecret, ...rest } = prev;
-            return rest;
-        });
-    };
-
     return (
         <AppContext.Provider value={{
             ...appData,
-            addSupplier, addCustomer, addPurchase, updatePurchase, addSale, updateSale, addCustomerPayment, addSupplierPayment, addExpense, enableTotp, disableTotp
+            addSupplier, addCustomer, addPurchase, updatePurchase, addSale, updateSale, addCustomerPayment, addSupplierPayment, addExpense, setAllData
         }}>
             {children}
         </AppContext.Provider>
