@@ -1,6 +1,10 @@
 import React, { useState } from 'react';
 import { DollarSign, Loader2 } from 'lucide-react';
-import { auth } from '../../firebase/config.ts';
+import { auth } from '../../firebase'; // Importa a instância de auth do firebase.ts na raiz
+import {
+    signInWithEmailAndPassword,
+    createUserWithEmailAndPassword
+} from 'firebase/auth';
 
 const Auth: React.FC = () => {
     const [isLoginView, setIsLoginView] = useState(true);
@@ -23,9 +27,9 @@ const Auth: React.FC = () => {
 
         try {
             if (isLoginView) {
-                await auth.signInWithEmailAndPassword(email, password);
+                await signInWithEmailAndPassword(auth, email, password); // Usando a função modular
             } else {
-                await auth.createUserWithEmailAndPassword(email, password);
+                await createUserWithEmailAndPassword(auth, email, password); // Usando a função modular
             }
             // onAuthStateChanged in App.tsx will handle the rest
         } catch (err: any) {

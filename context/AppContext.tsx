@@ -1,8 +1,17 @@
 
-import React, { createContext, useContext, ReactNode, useState, useEffect } from 'react';
+import React, { createContext, useContext, ReactNode } from 'react';
 import { db } from '../firebase';
-import { collection, onSnapshot, addDoc, doc, runTransaction, serverTimestamp, query, orderBy } from 'firebase/firestore';
+import { collection, doc, runTransaction } from 'firebase/firestore';
+import useFirestore from '../hooks/useFirestore';
 import { Supplier, Customer, Product, Purchase, Sale, CustomerPayment, PaymentMethod } from '../types';
+
+// Tipos base (sem ID), pois o ID é gerenciado pelo Firestore e pelo hook
+type BaseSupplier = Omit<Supplier, 'id'>;
+type BaseCustomer = Omit<Customer, 'id'>;
+type BaseProduct = Omit<Product, 'id'>;
+type BasePurchase = Omit<Purchase, 'id'>;
+type BaseSale = Omit<Sale, 'id'>;
+type BaseCustomerPayment = Omit<CustomerPayment, 'id'>;
 
 interface AppContextType {
     suppliers: Supplier[];
@@ -22,64 +31,33 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-    const [customers, setCustomers] = useState<Customer[]>([]);
-    const [products, setProducts] = useState<Product[]>([]);
-    const [purchases, setPurchases] = useState<Purchase[]>([]);
-    const [sales, setSales] = useState<Sale[]>([]);
-    const [customerPayments, setCustomerPayments] = useState<CustomerPayment[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+    // Usando o hook useFirestore para cada coleção
+    const { data: suppliers, loading: l1, addDocument: addSupplierDoc } = useFirestore<BaseSupplier>('suppliers');
+    const { data: customers, loading: l2, addDocument: addCustomerDoc } = useFirestore<BaseCustomer>('customers');
+    const { data: products, loading: l3 } = useFirestore<BaseProduct>('products');
+    const { data: purchases, loading: l4 } = useFirestore<BasePurchase>('purchases');
+    const { data: sales, loading: l5 } = useFirestore<BaseSale>('sales');
+    const { data: customerPayments, loading: l6 } = useFirestore<BaseCustomerPayment>('customerPayments');
 
-    useEffect(() => {
-        const collections = [
-            { name: 'suppliers', setter: setSuppliers },
-            { name: 'customers', setter: setCustomers },
-            { name: 'products', setter: setProducts },
-            { name: 'purchases', setter: setPurchases, orderByField: 'date' },
-            { name: 'sales', setter: setSales, orderByField: 'date' },
-            { name: 'customerPayments', setter: setCustomerPayments, orderByField: 'date' },
-        ];
-
-        let loadedCount = 0;
-        const unsubscribes = collections.map(({ name, setter, orderByField }) => {
-            const collRef = orderByField 
-                ? query(collection(db, name), orderBy(orderByField, 'desc'))
-                : collection(db, name);
-            
-            return onSnapshot(collRef, (snapshot) => {
-                const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
-                setter(data);
-                
-                if (isLoading) {
-                    loadedCount++;
-                    if (loadedCount === collections.length) {
-                        setIsLoading(false);
-                    }
-                }
-            }, (error) => {
-                console.error(`Error fetching ${name}:`, error);
-                setIsLoading(false); 
-            });
-        });
-
-        return () => unsubscribes.forEach(unsub => unsub());
-    }, []);
+    // O carregamento geral é verdadeiro se qualquer uma das coleções estiver carregando
+    const isLoading = l1 || l2 || l3 || l4 || l5 || l6;
 
     const addSupplier = async (name: string) => {
-        await addDoc(collection(db, 'suppliers'), { name });
+        await addSupplierDoc({ name });
     };
 
     const addCustomer = async (name: string) => {
-        await addDoc(collection(db, 'customers'), { name, balance: 0 });
+        await addCustomerDoc({ name, balance: 0 });
     };
 
+    // As funções de transação complexas permanecem as mesmas
     const addPurchase = async (productIdentifier: string | { name: string }, supplierId: string, quantity: number, unitPrice: number) => {
         try {
             await runTransaction(db, async (transaction) => {
                 let productId: string;
                 let productRef;
 
-                if (typeof productIdentifier === 'object') { // New product
+                if (typeof productIdentifier === 'object') { // Novo produto
                     productRef = doc(collection(db, "products"));
                     productId = productRef.id;
                     transaction.set(productRef, {
@@ -87,7 +65,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                         quantity: 0,
                         averageCost: 0
                     });
-                } else { // Existing product
+                } else { // Produto existente
                     productId = productIdentifier;
                     productRef = doc(db, 'products', productId);
                 }
@@ -121,7 +99,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             });
         } catch (e) {
             console.error("Erro na transação de compra: ", e);
-            alert(`Erro ao registrar compra: ${e.message}`);
+            alert(`Erro ao registrar compra: ${e instanceof Error ? e.message : String(e)}`);
         }
     };
 
@@ -158,7 +136,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             });
         } catch (e) {
             console.error("Erro na transação de venda: ", e);
-            alert(`Erro ao registrar venda: ${e.message}`);
+            alert(`Erro ao registrar venda: ${e instanceof Error ? e.message : String(e)}`);
         }
     };
     
@@ -186,7 +164,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             });
         } catch (e) {
             console.error("Erro na transação de pagamento: ", e);
-            alert(`Erro ao registrar pagamento: ${e.message}`);
+            alert(`Erro ao registrar pagamento: ${e instanceof Error ? e.message : String(e)}`);
         }
     };
 

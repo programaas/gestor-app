@@ -7,55 +7,23 @@ import Inventory from './components/pages/Inventory';
 import Purchases from './components/pages/Purchases';
 import Sales from './components/pages/Sales';
 import Expenses from './components/pages/Expenses';
-import Login from './components/auth/Login';
 import Settings from './components/pages/Settings';
-import { AppProvider, AppState } from './context/AppContext';
-
-// This is the shape of our entire application's data
-import { Supplier, Customer, Product, Purchase, Sale, CustomerPayment, SupplierPayment, Expense } from './types';
-
-// Extend AppState to be used here
-interface FullAppState extends AppState {
-    // No new fields needed, AppState already covers it
-}
+import Login from './components/auth/Login';
+import { AppProvider, useAppContext } from './context/AppContext';
+import { auth } from '../firebase'; // Importa a instância de auth do firebase.ts
+import { User } from 'firebase/auth'; // Importa o tipo User do firebase/auth
+import LoadingSpinner from '../components/ui/LoadingSpinner';
 
 export type View = 'dashboard' | 'sales' | 'purchases' | 'inventory' | 'customers' | 'suppliers' | 'expenses' | 'settings';
 
-// Make CryptoJS available from the global scope (since it's added via CDN)
-declare var CryptoJS: any;
-
-export const ENCRYPTED_DATA_KEY = 'app_data_encrypted';
-
-const App: React.FC = () => {
-    const [isAuthenticated, setIsAuthenticated] = useState(false);
-    const [masterPassword, setMasterPassword] = useState('');
-    const [appData, setAppData] = useState<FullAppState | null>(null);
+const MainApp: React.FC = () => {
     const [currentView, setCurrentView] = useState<View>('dashboard');
+    const { isLoading } = useAppContext();
 
-    // Effect to encrypt and save data whenever it changes
-    useEffect(() => {
-        if (appData && masterPassword) {
-            try {
-                const encryptedData = CryptoJS.AES.encrypt(JSON.stringify(appData), masterPassword).toString();
-                localStorage.setItem(ENCRYPTED_DATA_KEY, encryptedData);
-            } catch (error) {
-                console.error("Failed to encrypt or save data:", error);
-            }
-        }
-    }, [appData, masterPassword]);
-
-    const handleLoginSuccess = (decryptedData: FullAppState, password: string) => {
-        setAppData(decryptedData);
-        setMasterPassword(password);
-        setIsAuthenticated(true);
-    };
-    
-    const handleLogout = () => {
-        setIsAuthenticated(false);
-        setMasterPassword('');
-        setAppData(null);
-        setCurrentView('dashboard'); // Reset view on logout
-    };
+    // Renderiza o spinner de carregamento enquanto o contexto está carregando
+    if (isLoading) {
+        return <LoadingSpinner />;
+    }
 
     const renderView = () => {
         switch (currentView) {
@@ -66,23 +34,49 @@ const App: React.FC = () => {
             case 'customers': return <Customers />;
             case 'suppliers': return <Suppliers />;
             case 'expenses': return <Expenses />;
-            case 'settings': return <Settings handleLogout={handleLogout} />;
+            case 'settings': return <Settings />;
             default: return <Dashboard />;
         }
     };
 
-    if (!isAuthenticated || !appData) {
-        return <Login onLoginSuccess={handleLoginSuccess} />;
+    return (
+        <div className="flex h-screen bg-gray-100 dark:bg-gray-900 font-sans text-gray-900 dark:text-gray-200">
+            {/* Sidebar não precisa mais de handleLogout, pois o logout será global */}
+            <Sidebar currentView={currentView} setCurrentView={setCurrentView} />
+            <main className="flex-1 p-6 lg:p-8 overflow-y-auto">
+                {renderView()}
+            </main>
+        </div>
+    );
+}
+
+const App: React.FC = () => {
+    const [user, setUser] = useState<User | null>(null);
+    const [loadingAuth, setLoadingAuth] = useState(true);
+
+    useEffect(() => {
+        // Observa mudanças no estado de autenticação
+        const unsubscribe = auth.onAuthStateChanged((user) => {
+            setUser(user);
+            setLoadingAuth(false);
+        });
+
+        // Limpa a inscrição ao desmontar o componente
+        return () => unsubscribe();
+    }, []);
+
+    if (loadingAuth) {
+        return <LoadingSpinner />;
+    }
+
+    if (!user) {
+        // Se não houver usuário autenticado, mostra a tela de login
+        return <Login />;
     }
 
     return (
-        <AppProvider appData={appData} setAppData={setAppData}>
-            <div className="flex h-screen bg-gray-100 dark:bg-gray-900 font-sans text-gray-900 dark:text-gray-200">
-                <Sidebar currentView={currentView} setCurrentView={setCurrentView} handleLogout={handleLogout} />
-                <main className="flex-1 p-6 lg:p-8 overflow-y-auto">
-                    {renderView()}
-                </main>
-            </div>
+        <AppProvider>
+            <MainApp />
         </AppProvider>
     );
 };

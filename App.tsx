@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Sidebar from './components/layout/Sidebar';
 import Dashboard from './components/pages/Dashboard';
 import Customers from './components/pages/Customers';
@@ -9,8 +9,11 @@ import Purchases from './components/pages/Purchases';
 import Sales from './components/pages/Sales';
 import { AppProvider, useAppContext } from './context/AppContext';
 import LoadingSpinner from './components/ui/LoadingSpinner';
+import Auth from './components/auth/Auth'; // Importa o componente de autenticação
+import { auth } from './firebase'; // Importa a instância de auth do firebase
+import { User } from 'firebase/auth';
 
-export type View = 'dashboard' | 'sales' | 'purchases' | 'inventory' | 'customers' | 'suppliers';
+export type View = 'dashboard' | 'sales' | 'purchases' | 'inventory' | 'customers' | 'suppliers' | 'settings'; // Adicionei 'settings'
 
 const MainApp: React.FC = () => {
     const [currentView, setCurrentView] = useState<View>('dashboard');
@@ -34,6 +37,8 @@ const MainApp: React.FC = () => {
                 return <Customers />;
             case 'suppliers':
                 return <Suppliers />;
+            // case 'settings': // Se você tiver um componente de configurações, descomente e importe-o
+            //     return <Settings />;
             default:
                 return <Dashboard />;
         }
@@ -47,9 +52,28 @@ const MainApp: React.FC = () => {
             </main>
         </div>
     );
-}
+};
 
 const App: React.FC = () => {
+    const [user, setUser] = useState<User | null>(null);
+    const [authLoading, setAuthLoading] = useState(true);
+
+    useEffect(() => {
+        const unsubscribe = auth.onAuthStateChanged((currentUser) => {
+            setUser(currentUser);
+            setAuthLoading(false);
+        });
+        return () => unsubscribe();
+    }, []);
+
+    if (authLoading) {
+        return <LoadingSpinner />;
+    }
+
+    if (!user) {
+        return <Auth />;
+    }
+
     return (
         <AppProvider>
             <MainApp />

@@ -44,7 +44,7 @@ const Dashboard: React.FC = () => {
                     Use o menu à esquerda para navegar pelas seções. Você pode registrar novas vendas, compras, gerenciar seu estoque, clientes e fornecedores.
                 </p>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-4">
-                    <strong>Aviso:</strong> Todos os dados são salvos localmente no seu navegador. Limpar o cache do navegador irá apagar todos os registros.
+                    <strong>Aviso:</strong> Todos os dados agora são salvos na nuvem usando Firestore. Seus registros estão seguros!
                 </p>
             </div>
         </div>
