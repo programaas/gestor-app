@@ -9,3 +9,7 @@ git push
 
 
 ), a Vercel irá detectar a mudança automaticamente e atualizará seu site no ar em menos de um minuto. Você não precisa fazer mais nada
+
+1
+2
+3
