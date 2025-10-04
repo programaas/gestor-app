@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { View } from '../../App';
-import { BarChart2, ShoppingCart, Package, DollarSign, Users, Truck, Settings, LogOut } from 'lucide-react';
+import { BarChart2, ShoppingCart, Package, DollarSign, Users, Truck, Settings, LogOut, Briefcase } from 'lucide-react';
 import { auth } from '../../firebase'; // Importa a instância de auth
 import { signOut } from 'firebase/auth'; // Importa a função signOut
 
