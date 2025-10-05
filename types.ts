@@ -16,6 +16,7 @@ export interface Product {
     name: string;
     quantity: number;
     averageCost: number;
+    category?: string; // Adicionado
 }
 
 export enum PaymentMethod {

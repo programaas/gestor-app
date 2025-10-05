@@ -99,13 +99,20 @@ const Purchases: React.FC = () => {
         }
     };
 
+    const getRecipientName = (supplierId: string) => {
+        if (supplierId === '_CAIXA_') return 'Caixa (Transferência Interna)';
+        if (supplierId === '_DESPESAS_') return 'Despesas Gerais';
+        const supplier = suppliers.find(s => s.id === supplierId);
+        return supplier?.name || 'N/A';
+    };
+
     return (
         <div>
             <div className="flex justify-between items-center mb-6">
-                <h1 className="text-3xl font-bold text-gray-800 dark:text-white">Compras</h1>
+                <h1 className="text-3xl font-bold text-gray-800 dark:text-white">Lançamentos</h1>
                 <button onClick={() => { setEditingPurchase(null); setIsModalOpen(true); }} className="bg-indigo-500 text-white px-4 py-2 rounded-lg hover:bg-indigo-600 flex items-center shadow">
                     <PlusCircle size={20} className="mr-2" />
-                    Nova Compra
+                    Novo Lançamento
                 </button>
             </div>
 
@@ -114,8 +121,8 @@ const Purchases: React.FC = () => {
                     <thead className="bg-gray-50 dark:bg-gray-700">
                         <tr>
                             <th className="p-4 font-semibold">Data</th>
-                            <th className="p-4 font-semibold">Produto</th>
-                            <th className="p-4 font-semibold">Fornecedor</th>
+                            <th className="p-4 font-semibold">Produto/Descrição</th>
+                            <th className="p-4 font-semibold">Destinatário</th>
                             <th className="p-4 font-semibold">Qtd.</th>
                             <th className="p-4 font-semibold">Preço Unit.</th>
                             <th className="p-4 font-semibold">Total</th>
@@ -125,12 +132,11 @@ const Purchases: React.FC = () => {
                     <tbody>
                         {purchases.slice().reverse().map(purchase => {
                              const product = products.find(p => p.id === purchase.productId);
-                             const supplier = suppliers.find(s => s.id === purchase.supplierId);
                              return(
                                 <tr key={purchase.id} className="border-b dark:border-gray-700">
                                     <td className="p-4">{new Date(purchase.date).toLocaleString()}</td>
                                     <td className="p-4 flex items-center"><Package size={16} className="mr-2 text-gray-500" />{product?.name || 'N/A'}</td>
-                                    <td className="p-4">{supplier?.name || 'N/A'}</td>
+                                    <td className="p-4">{getRecipientName(purchase.supplierId)}</td>
                                     <td className="p-4">{purchase.quantity}</td>
                                     <td className="p-4">{formatCurrency(purchase.unitPrice)}</td>
                                     <td className="p-4">{formatCurrency(purchase.quantity * purchase.unitPrice)}</td>
@@ -149,32 +155,34 @@ const Purchases: React.FC = () => {
                 </table>
             </div>
 
-            <Modal isOpen={isModalOpen} onClose={resetForm} title={editingPurchase ? "Editar Compra" : "Registrar Nova Compra"}>
+            <Modal isOpen={isModalOpen} onClose={resetForm} title={editingPurchase ? "Editar Lançamento" : "Registrar Novo Lançamento"}>
                 <form onSubmit={handleAddOrUpdatePurchase} className="space-y-4">
                      <div>
                         <label className="flex items-center">
                             <input type="checkbox" name="isNewProduct" checked={formState.isNewProduct} onChange={handleChange} className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded" />
-                            <span className="ml-2 text-sm">Cadastrar novo produto</span>
+                            <span className="ml-2 text-sm">Cadastrar novo produto/despesa</span>
                         </label>
                     </div>
                     {formState.isNewProduct ? (
                         <div>
-                            <label className="block text-sm font-medium">Nome do Novo Produto</label>
+                            <label className="block text-sm font-medium">Nome do Novo Produto/Despesa</label>
                             <input type="text" name="newProductName" value={formState.newProductName} onChange={handleChange} className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md" required={formState.isNewProduct} />
                         </div>
                     ) : (
                         <div>
-                            <label className="block text-sm font-medium">Produto</label>
+                            <label className="block text-sm font-medium">Produto/Serviço</label>
                             <select name="selectedProduct" value={formState.selectedProduct} onChange={handleChange} className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md" required={!formState.isNewProduct}>
-                                <option value="">Selecione um produto</option>
+                                <option value="">Selecione um item</option>
                                 {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                             </select>
                         </div>
                     )}
                      <div>
-                        <label className="block text-sm font-medium">Fornecedor</label>
+                        <label className="block text-sm font-medium">Destinatário</label>
                         <select name="selectedSupplier" value={formState.selectedSupplier} onChange={handleChange} className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md" required>
-                            <option value="">Selecione um fornecedor</option>
+                            <option value="">Selecione o destinatário</option>
+                            <option value="_CAIXA_">Caixa (Transferência Interna)</option>
+                            <option value="_DESPESAS_">Despesas Gerais</option>
                             {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                         </select>
                     </div>
@@ -184,12 +192,12 @@ const Purchases: React.FC = () => {
                             <input type="number" name="quantity" value={formState.quantity} onChange={handleChange} className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md" min="1" required />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium">Preço de Compra (Unitário)</label>
+                            <label className="block text-sm font-medium">Valor (Unitário)</label>
                             <input type="number" name="unitPrice" value={formState.unitPrice} onChange={handleChange} className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md" step="0.01" min="0" required />
                         </div>
                     </div>
                     <div className="flex justify-end pt-4">
-                        <button type="submit" className="bg-indigo-500 text-white px-4 py-2 rounded-lg hover:bg-indigo-600">{editingPurchase ? "Salvar Alterações" : "Adicionar Compra"}</button>
+                        <button type="submit" className="bg-indigo-500 text-white px-4 py-2 rounded-lg hover:bg-indigo-600">{editingPurchase ? "Salvar Alterações" : "Adicionar Lançamento"}</button>
                     </div>
                 </form>
             </Modal>

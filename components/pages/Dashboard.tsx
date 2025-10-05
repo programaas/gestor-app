@@ -17,14 +17,14 @@ const StatCard: React.FC<{ title: string; value: string | number; icon: React.El
 );
 
 const Dashboard: React.FC = () => {
-    const { customers, suppliers, products, sales, expenses } = useAppContext();
+    const { customers, suppliers, products, sales } = useAppContext(); // REMOVA expenses
 
-    const totalRevenue = sales.reduce((acc, sale) => acc + sale.totalAmount, 0);
-    const totalProfit = sales.reduce((acc, sale) => acc + sale.totalProfit, 0);
-    const totalExpenses = expenses.reduce((acc, expense) => acc + expense.amount, 0);
+    const totalRevenue = sales.reduce((acc, sale) => acc + (sale.totalAmount || 0), 0);
+    const totalProfit = sales.reduce((acc, sale) => acc + (sale.totalProfit || 0), 0);
+    const totalExpenses = 0; // ou remova essa linha
     const netProfit = totalProfit - totalExpenses;
-    const totalCustomerDebt = customers.reduce((acc, customer) => acc + customer.balance, 0);
-    const lowStockProducts = products.filter(p => p.quantity <= 5).length;
+    const totalCustomerDebt = customers.reduce((acc, customer) => acc + (customer.balance || 0), 0);
+    const lowStockProducts = products.filter(p => (p.quantity || 0) <= 5).length;
 
     return (
         <div>

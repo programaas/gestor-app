@@ -7,17 +7,17 @@ import Suppliers from './components/pages/Suppliers';
 import Inventory from './components/pages/Inventory';
 import Purchases from './components/pages/Purchases';
 import Sales from './components/pages/Sales';
-import Expenses from './components/pages/Expenses';
-import Cash from './components/pages/Cash';
 import Settings from './components/pages/Settings';
+import Reports from './components/pages/Reports'; // Importa a nova página
 import { AppProvider, useAppContext } from './context/AppContext';
-import { ThemeProvider } from './context/ThemeContext'; // Importa o ThemeProvider
+import { ThemeProvider } from './context/ThemeContext'; 
 import LoadingSpinner from './components/ui/LoadingSpinner';
 import Auth from './components/auth/Auth';
 import { auth } from './firebase';
 import { User } from 'firebase/auth';
 
-export type View = 'dashboard' | 'sales' | 'purchases' | 'inventory' | 'customers' | 'suppliers' | 'expenses' | 'cash' | 'settings';
+// Adiciona 'reports' ao tipo View
+export type View = 'dashboard' | 'sales' | 'purchases' | 'inventory' | 'customers' | 'suppliers' | 'reports' | 'settings';
 
 const MainApp: React.FC = () => {
     const [currentView, setCurrentView] = useState<View>('dashboard');
@@ -41,10 +41,8 @@ const MainApp: React.FC = () => {
                 return <Customers />;
             case 'suppliers':
                 return <Suppliers />;
-            case 'expenses':
-                return <Expenses />;
-            case 'cash':
-                return <Cash />;
+            case 'reports': // Adiciona o case para a nova view
+                return <Reports />;
             case 'settings':
                 return <Settings />;
             default:

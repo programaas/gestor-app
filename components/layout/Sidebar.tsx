@@ -1,9 +1,9 @@
-import React from 'react';
+
+import React, { useState } from 'react';
 import { View } from '../../App';
-import { BarChart2, ShoppingCart, Package, DollarSign, Users, Truck, Settings, LogOut, Briefcase, CreditCard } from 'lucide-react';
+import { Home, ShoppingCart, Truck, Package, Users, Briefcase, Settings, BarChart2, Sun, Moon, LogOut } from 'lucide-react';
+import { useTheme } from '../../context/ThemeContext';
 import { auth } from '../../firebase';
-import { signOut } from 'firebase/auth';
-import ThemeSwitcher from '../ui/ThemeSwitcher'; // Importa o ThemeSwitcher
 
 interface SidebarProps {
     currentView: View;
@@ -11,69 +11,64 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView }) => {
-    // A lista de itens de navegação já com ícones intuitivos.
-    const navItems = [
-        { id: 'dashboard', label: 'Dashboard', icon: BarChart2 },
-        { id: 'sales', label: 'Vendas', icon: ShoppingCart },
-        { id: 'purchases', label: 'Compras', icon: Package },
-        { id: 'inventory', label: 'Estoque', icon: Briefcase },
-        { id: 'customers', label: 'Clientes', icon: Users },
-        { id: 'suppliers', label: 'Fornecedores', icon: Truck },
-        { id: 'expenses', label: 'Despesas', icon: CreditCard },
-        { id: 'cash', label: 'Caixa', icon: DollarSign },
-        { id: 'settings', label: 'Configurações', icon: Settings },
-    ];
+    const { theme, toggleTheme } = useTheme();
 
-    const handleLogout = async () => {
-        try {
-            await signOut(auth);
-        } catch (error) {
-            console.error("Erro ao fazer logout:", error);
-            alert("Não foi possível fazer logout. Tente novamente.");
+    const NavItem: React.FC<{ view: View; icon: React.ReactNode; label: string }> = ({ view, icon, label }) => (
+        <li>
+            <a
+                href="#"
+                onClick={(e) => { e.preventDefault(); setCurrentView(view); }}
+                className={`flex items-center p-3 rounded-lg transition-colors duration-200 ${currentView === view
+                        ? 'bg-indigo-500 text-white shadow-lg'
+                        : 'text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                    }`}
+            >
+                {icon}
+                <span className="ml-4 font-medium">{label}</span>
+            </a>
+        </li>
+    );
+
+    const handleLogout = () => {
+        if (window.confirm("Tem certeza que deseja sair do sistema?")) {
+            auth.signOut().then(() => {
+                console.log('Usuário deslogado com sucesso.');
+            }).catch((error) => {
+                console.error("Erro ao fazer logout:", error);
+            });
         }
     };
 
     return (
-        <aside className="w-64 bg-white dark:bg-gray-800 flex-shrink-0 border-r border-gray-200 dark:border-gray-700 flex flex-col">
-            {/* Cabeçalho com Logo, Nome e o novo ThemeSwitcher */}
-            <div className="h-16 flex items-center justify-between px-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
-                <div className="flex items-center">
-                    <DollarSign className="h-8 w-8 text-indigo-500" />
-                    <h1 className="text-xl font-bold ml-2 text-gray-800 dark:text-white">GestorApp</h1>
+        <aside className="w-64 bg-white dark:bg-gray-800 shadow-md flex flex-col justify-between transition-colors duration-300">
+            <div>
+                <div className="p-6 text-center">
+                    <h1 className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">GestorMax</h1>
                 </div>
-                <ThemeSwitcher />
+                <nav className="px-4">
+                    <ul className="space-y-2">
+                        <NavItem view="dashboard" icon={<Home size={22} />} label="Dashboard" />
+                        <NavItem view="sales" icon={<ShoppingCart size={22} />} label="Vendas" />
+                        <NavItem view="purchases" icon={<Truck size={22} />} label="Compras" />
+                        <NavItem view="inventory" icon={<Package size={22} />} label="Estoque" />
+                        <NavItem view="customers" icon={<Users size={22} />} label="Clientes" />
+                        <NavItem view="suppliers" icon={<Briefcase size={22} />} label="Fornecedores" />
+                        {/* Ação de clique corrigida para Relatórios */}
+                        <NavItem view="reports" icon={<BarChart2 size={22} />} label="Relatórios" />
+                        <NavItem view="settings" icon={<Settings size={22} />} label="Configurações" />
+                    </ul>
+                </nav>
             </div>
-            
-            {/* Navegação Principal */}
-            <nav className="mt-6 flex-grow">
-                <ul>
-                    {navItems.map(item => (
-                        <li key={item.id} className="px-4 py-1">
-                            <button
-                                onClick={() => setCurrentView(item.id as View)}
-                                className={`w-full flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-colors duration-200 ${
-                                    currentView === item.id
-                                        ? 'bg-indigo-500 text-white shadow-lg'
-                                        : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
-                                }`}
-                            >
-                                <item.icon className="h-5 w-5 mr-3" />
-                                {item.label}
-                            </button>
-                        </li>
-                    ))}
-                </ul>
-            </nav>
-
-            {/* Botão de Logout na parte inferior */}
-            <div className="p-4 flex-shrink-0">
-                <button
-                    onClick={handleLogout}
-                    className="w-full flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-colors duration-200 text-red-500 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50"
-                >
-                    <LogOut className="h-5 w-5 mr-3" />
-                    Sair
-                </button>
+            <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+                <div className="flex justify-around items-center mb-4">
+                     <button onClick={toggleTheme} className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                        {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+                    </button>
+                    <button onClick={handleLogout} className="flex items-center text-red-500 hover:text-red-700 dark:hover:text-red-400 p-2 rounded-lg transition-colors">
+                        <LogOut size={20} />
+                        <span className="ml-2 font-medium">Sair</span>
+                    </button>
+                </div>
             </div>
         </aside>
     );
