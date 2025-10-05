@@ -177,7 +177,7 @@ const Reports: React.FC = () => {
                     </div>
                 </div>
 
-p                <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+                <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
                     <h2 className="text-xl font-semibold mb-4">Análise de Clientes</h2>
                     <div className="max-h-96 overflow-y-auto">
                         <table className="w-full text-left">
