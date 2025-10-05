@@ -1,17 +1,29 @@
 
 import React, { useState } from 'react';
 import { useAppContext } from '../../context/AppContext';
-import { Supplier } from '../../types'; // Assuming Supplier type is defined
+import { Supplier, Purchase } from '../../types'; 
 import Modal from '../ui/Modal';
-import { PlusCircle, Truck, Edit, Trash2 } from 'lucide-react';
+import { PlusCircle, Truck, Edit, Trash2, DollarSign } from 'lucide-react';
+import { formatCurrency } from '../../utils/formatters';
 
 const Suppliers: React.FC = () => {
-    const { suppliers, addSupplier, updateSupplier, deleteSupplier } = useAppContext();
+    const { suppliers, purchases, addSupplier, updateSupplier, deleteSupplier } = useAppContext();
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-    const [isEditModalOpen, setEditModalOpen] = useState(false); // New state for edit modal
-    const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null); // New state for supplier being edited
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
+    const [isPaymentsModalOpen, setIsPaymentsModalOpen] = useState(false);
+    const [viewingPaymentsOf, setViewingPaymentsOf] = useState<Supplier | null>(null);
 
     const [newName, setNewName] = useState('');
+
+    const getSupplierBalance = (supplierId: string) => {
+        const totalPurchases = purchases
+            .filter(p => p.supplierId === supplierId)
+            .reduce((acc, p) => acc + (p.quantity * p.unitPrice), 0);
+        // Assuming payments to suppliers are not yet tracked, this will be the balance.
+        // This can be updated once supplier payments are implemented.
+        return totalPurchases;
+    };
 
     const handleAddSupplier = (e: React.FormEvent) => {
         e.preventDefault();
@@ -22,29 +34,31 @@ const Suppliers: React.FC = () => {
         }
     };
 
-    // New handler to open edit modal
     const handleOpenEditModal = (supplier: Supplier) => {
         setEditingSupplier(supplier);
-        setNewName(supplier.name); // Pre-fill the form with the current name
-        setEditModalOpen(true);
+        setNewName(supplier.name); 
+        setIsEditModalOpen(true);
     };
 
-    // New handler to update supplier
     const handleUpdateSupplier = (e: React.FormEvent) => {
         e.preventDefault();
         if (editingSupplier && newName.trim()) {
             updateSupplier(editingSupplier.id, newName.trim());
-            setEditModalOpen(false);
+            setIsEditModalOpen(false);
             setEditingSupplier(null);
             setNewName('');
         }
     };
 
-    // New handler to delete supplier
     const handleDeleteSupplier = (supplierId: string) => {
         if (window.confirm('Tem certeza que deseja excluir este fornecedor?')) {
             deleteSupplier(supplierId);
         }
+    };
+    
+    const handleOpenPaymentsModal = (supplier: Supplier) => {
+        setViewingPaymentsOf(supplier);
+        setIsPaymentsModalOpen(true);
     };
 
     return (
@@ -62,6 +76,7 @@ const Suppliers: React.FC = () => {
                     <thead className="bg-gray-50 dark:bg-gray-700">
                         <tr>
                             <th className="p-4 font-semibold">Nome</th>
+                            <th className="p-4 font-semibold text-right">Saldo Devedor</th>
                             <th className="p-4 font-semibold text-right">Ações</th>
                         </tr>
                     </thead>
@@ -69,7 +84,9 @@ const Suppliers: React.FC = () => {
                         {suppliers.map(supplier => (
                             <tr key={supplier.id} className="border-b dark:border-gray-700">
                                 <td className="p-4 flex items-center"><Truck size={16} className="mr-2 text-gray-500" />{supplier.name}</td>
+                                <td className="p-4 text-right">{formatCurrency(getSupplierBalance(supplier.id))}</td>
                                 <td className="p-4 text-right flex items-center justify-end">
+                                    <button onClick={() => handleOpenPaymentsModal(supplier)} className="text-green-600 dark:text-green-400 hover:underline mr-4 flex items-center"><DollarSign size={16} className="mr-1"/> Pagamentos</button>
                                     <button onClick={() => handleOpenEditModal(supplier)} className="text-blue-600 dark:text-blue-400 hover:underline mr-4 flex items-center"><Edit size={16} className="mr-1" /> Editar</button>
                                     <button onClick={() => handleDeleteSupplier(supplier.id)} className="text-red-600 dark:text-red-400 hover:underline flex items-center"><Trash2 size={16} className="mr-1" /> Excluir</button>
                                 </td>
@@ -91,8 +108,7 @@ const Suppliers: React.FC = () => {
                 </form>
             </Modal>
 
-            {/* Edit Supplier Modal */}
-            <Modal isOpen={isEditModalOpen} onClose={() => setEditModalOpen(false)} title={`Editar Fornecedor: ${editingSupplier?.name}`}>
+            <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title={`Editar Fornecedor: ${editingSupplier?.name}`}>
                 <form onSubmit={handleUpdateSupplier}>
                     <div className="mb-4">
                         <label htmlFor="edit-name" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Nome do Fornecedor</label>
@@ -102,6 +118,13 @@ const Suppliers: React.FC = () => {
                         <button type="submit" className="bg-indigo-500 text-white px-4 py-2 rounded-lg hover:bg-indigo-600">Atualizar</button>
                     </div>
                 </form>
+            </Modal>
+
+            <Modal isOpen={isPaymentsModalOpen} onClose={() => setIsPaymentsModalOpen(false)} title={`Histórico de Pagamentos: ${viewingPaymentsOf?.name}`}>
+                <div>
+                    {/* Payment history will be displayed here. Implementation will follow in the next steps. */}
+                    <p>Histórico de pagamentos para {viewingPaymentsOf?.name}.</p>
+                </div>
             </Modal>
         </div>
     );

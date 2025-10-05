@@ -1,17 +1,18 @@
 
 import React, { useState } from 'react';
 import { useAppContext } from '../../context/AppContext';
-import { Customer, PaymentMethod } from '../../types';
+import { Customer, PaymentMethod, Sale } from '../../types';
 import Modal from '../ui/Modal';
 import { PlusCircle, User, Edit, Trash2 } from 'lucide-react';
+import { formatCurrency } from '../../utils/formatters';
 
 const Customers: React.FC = () => {
     const { customers, addCustomer, updateCustomer, deleteCustomer, addCustomerPayment, suppliers, sales, products } = useAppContext();
     const [isAddModalOpen, setAddModalOpen] = useState(false);
     const [isPayModalOpen, setPayModalOpen] = useState(false);
     const [isDetailModalOpen, setDetailModalOpen] = useState(false);
-    const [isEditModalOpen, setEditModalOpen] = useState(false); // New state for edit modal
-    const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null); // New state for customer being edited
+    const [isEditModalOpen, setEditModalOpen] = useState(false);
+    const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
 
     const [newName, setNewName] = useState('');
     const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
@@ -40,14 +41,12 @@ const Customers: React.FC = () => {
         setDetailModalOpen(true);
     };
 
-    // New handler to open edit modal
     const handleOpenEditModal = (customer: Customer) => {
         setEditingCustomer(customer);
-        setNewName(customer.name); // Pre-fill the form with the current name
+        setNewName(customer.name);
         setEditModalOpen(true);
     };
 
-    // New handler to update customer
     const handleUpdateCustomer = (e: React.FormEvent) => {
         e.preventDefault();
         if (editingCustomer && newName.trim()) {
@@ -58,7 +57,6 @@ const Customers: React.FC = () => {
         }
     };
 
-    // New handler to delete customer
     const handleDeleteCustomer = (customerId: string) => {
         if (window.confirm('Tem certeza que deseja excluir este cliente?')) {
             deleteCustomer(customerId);
@@ -89,10 +87,7 @@ const Customers: React.FC = () => {
         });
     };
     
-    const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
-    
-    const customerSales = sales.filter(s => s.customerId === selectedCustomer?.id);
-
+    const customerSales = (sales || []).filter(s => s.customerId === selectedCustomer?.id);
 
     return (
         <div>
@@ -114,7 +109,7 @@ const Customers: React.FC = () => {
                         </tr>
                     </thead>
                     <tbody>
-                        {customers.map(customer => (
+                        {(customers || []).map(customer => (
                             <tr key={customer.id} className="border-b dark:border-gray-700">
                                 <td className="p-4 flex items-center"><User size={16} className="mr-2 text-gray-500" />{customer.name}</td>
                                 <td className={`p-4 font-medium ${customer.balance > 0 ? 'text-red-500' : 'text-green-500'}`}>{formatCurrency(customer.balance)}</td>
@@ -142,7 +137,6 @@ const Customers: React.FC = () => {
                 </form>
             </Modal>
 
-            {/* Edit Customer Modal */}
             <Modal isOpen={isEditModalOpen} onClose={() => setEditModalOpen(false)} title={`Editar Cliente: ${editingCustomer?.name}`}>
                 <form onSubmit={handleUpdateCustomer}>
                     <div className="mb-4">
@@ -169,7 +163,7 @@ const Customers: React.FC = () => {
                     </div>
                     <div className="mb-4">
                         <h4 className="text-md font-medium mb-2">Alocar pagamento para fornecedores (Opcional)</h4>
-                        {suppliers.map(supplier => (
+                        {(suppliers || []).map(supplier => (
                             <div key={supplier.id} className="flex items-center justify-between mb-2">
                                 <label>{supplier.name}</label>
                                 <input type="number" placeholder="0.00" onChange={e => handleAllocationChange(supplier.id, e.target.value)} className="w-32 px-2 py-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md" step="0.01" />
@@ -188,28 +182,28 @@ const Customers: React.FC = () => {
                     <h4 className="font-semibold mt-4 border-t pt-4">Histórico de Vendas</h4>
                      <div className="max-h-80 overflow-y-auto">
                         <table className="w-full text-sm">
-                            <thead>
-                                <tr className="text-left bg-gray-100 dark:bg-gray-700">
+                            <thead className="sticky top-0 bg-gray-100 dark:bg-gray-700">
+                                <tr className="text-left">
                                     <th className="p-2">Data</th>
-                                    <th className="p-2">Produto</th>
-                                    <th className="p-2">Qtd.</th>
-                                    <th className="p-2">Valor Unit.</th>
-                                    <th className="p-2">Total</th>
+                                    <th className="p-2">Produtos</th>
+                                    <th className="p-2 text-right">Valor Total</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {customerSales.map(sale => {
-                                    const product = products.find(p => p.id === sale.productId);
-                                    return (
-                                        <tr key={sale.id} className="border-b dark:border-gray-600">
-                                            <td className="p-2">{new Date(sale.date).toLocaleDateString()}</td>
-                                            <td className="p-2">{product?.name || 'N/A'}</td>
-                                            <td className="p-2">{sale.quantity}</td>
-                                            <td className="p-2">{formatCurrency(sale.unitPrice)}</td>
-                                            <td className="p-2">{formatCurrency(sale.quantity * sale.unitPrice)}</td>
-                                        </tr>
-                                    );
-                                })}
+                                {customerSales.map(sale => (
+                                    <tr key={sale.id} className="border-b dark:border-gray-600">
+                                        <td className="p-2 align-top">{new Date(sale.date).toLocaleDateString()}</td>
+                                        <td className="p-2">
+                                            <ul className="list-disc list-inside">
+                                            {(sale.products || []).map(p => {
+                                                const product = (products || []).find(prod => prod.id === p.productId);
+                                                return <li key={p.productId}>{product?.name} ({p.quantity}x {formatCurrency(p.unitPrice)})</li>
+                                            })}
+                                            </ul>
+                                        </td>
+                                        <td className="p-2 align-top text-right">{formatCurrency(sale.totalAmount)}</td>
+                                    </tr>
+                                ))}
                             </tbody>
                         </table>
                     </div>

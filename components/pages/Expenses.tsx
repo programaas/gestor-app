@@ -1,46 +1,34 @@
-import React, { useState, useMemo } from 'react';
-import { useAppContext } from '../../context/AppContext.tsx';
-import Modal from '../ui/Modal.tsx';
-import { PlusCircle, Receipt } from 'lucide-react';
+
+import React, { useState } from 'react';
+import { useAppContext } from '../../context/AppContext';
+import { Expense, PaymentMethod } from '../../types';
+import Modal from '../ui/Modal';
+import { PlusCircle, Edit, Trash2 } from 'lucide-react';
+import { formatCurrency } from '../../utils/formatters';
 
 const Expenses: React.FC = () => {
-    const { expenses, addExpense, caixaBalance } = useAppContext();
+    const { expenses, addExpense } = useAppContext();
     const [isModalOpen, setIsModalOpen] = useState(false);
-    
     const [description, setDescription] = useState('');
-    const [amount, setAmount] = useState<number | ''>('');
-    const [startDate, setStartDate] = useState('');
-    const [endDate, setEndDate] = useState('');
+    const [amount, setAmount] = useState(0);
+    const [paidFrom, setPaidFrom] = useState<PaymentMethod>(PaymentMethod.Caixa);
 
     const resetForm = () => {
         setDescription('');
-        setAmount('');
+        setAmount(0);
+        setPaidFrom(PaymentMethod.Caixa);
         setIsModalOpen(false);
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleAddExpense = (e: React.FormEvent) => {
         e.preventDefault();
-        const numericAmount = Number(amount);
-        if (description.trim() && numericAmount > 0) {
-            addExpense(description.trim(), numericAmount);
-            resetForm();
-        } else {
-            alert('Por favor, preencha a descrição e um valor válido.');
+        if (!description || amount <= 0) {
+            alert('Por favor, preencha a descrição e o valor da despesa.');
+            return;
         }
+        addExpense(description, amount, paidFrom);
+        resetForm();
     };
-
-    const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
-
-    const filteredExpenses = useMemo(() => {
-        return expenses
-            .filter(expense => {
-                const expenseDate = new Date(expense.date);
-                if (startDate && new Date(startDate) > expenseDate) return false;
-                if (endDate && new Date(endDate) < expenseDate) return false;
-                return true;
-            })
-            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    }, [expenses, startDate, endDate]);
 
     return (
         <div>
@@ -48,15 +36,8 @@ const Expenses: React.FC = () => {
                 <h1 className="text-3xl font-bold text-gray-800 dark:text-white">Despesas</h1>
                 <button onClick={() => setIsModalOpen(true)} className="bg-indigo-500 text-white px-4 py-2 rounded-lg hover:bg-indigo-600 flex items-center shadow">
                     <PlusCircle size={20} className="mr-2" />
-                    Nova Despesa (do Caixa)
+                    Nova Despesa
                 </button>
-            </div>
-            
-             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 mb-6 flex items-center gap-4">
-                <label className="font-semibold">Filtrar por Período:</label>
-                <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md"/>
-                <span>até</span>
-                <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md"/>
             </div>
 
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
@@ -65,17 +46,17 @@ const Expenses: React.FC = () => {
                         <tr>
                             <th className="p-4 font-semibold">Data</th>
                             <th className="p-4 font-semibold">Descrição</th>
-                            <th className="p-4 font-semibold">Origem</th>
+                            <th className="p-4 font-semibold">Pago de</th>
                             <th className="p-4 font-semibold text-right">Valor</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {filteredExpenses.map(expense => (
+                        {(expenses || []).slice().reverse().map(expense => (
                             <tr key={expense.id} className="border-b dark:border-gray-700">
                                 <td className="p-4">{new Date(expense.date).toLocaleString()}</td>
-                                <td className="p-4 flex items-center"><Receipt size={16} className="mr-2 text-gray-500" />{expense.description}</td>
-                                <td className="p-4">{expense.source}</td>
-                                <td className="p-4 text-right font-medium text-red-500">{formatCurrency(expense.amount)}</td>
+                                <td className="p-4">{expense.description}</td>
+                                <td className="p-4">{expense.paidFrom}</td>
+                                <td className="p-4 text-right">{formatCurrency(expense.amount)}</td>
                             </tr>
                         ))}
                     </tbody>
@@ -83,19 +64,20 @@ const Expenses: React.FC = () => {
             </div>
 
             <Modal isOpen={isModalOpen} onClose={resetForm} title="Registrar Nova Despesa">
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    <p className="text-sm text-gray-600 dark:text-gray-300">
-                        Esta despesa será paga com o saldo do seu Caixa.
-                        <br/>
-                        Saldo atual do Caixa: <strong>{formatCurrency(caixaBalance)}</strong>
-                    </p>
+                <form onSubmit={handleAddExpense} className="space-y-4">
                     <div>
                         <label className="block text-sm font-medium">Descrição</label>
-                        <input type="text" value={description} onChange={e => setDescription(e.target.value)} className="mt-1 block w-full" required />
+                        <input type="text" value={description} onChange={e => setDescription(e.target.value)} className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md" required />
                     </div>
                     <div>
                         <label className="block text-sm font-medium">Valor</label>
-                        <input type="number" value={amount} onChange={e => setAmount(e.target.value === '' ? '' : parseFloat(e.target.value))} className="mt-1 block w-full" step="0.01" min="0.01" required />
+                        <input type="number" value={amount} onChange={e => setAmount(parseFloat(e.target.value || '0'))} className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md" step="0.01" min="0" required />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium">Pago de</label>
+                        <select value={paidFrom} onChange={e => setPaidFrom(e.target.value as PaymentMethod)} className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md">
+                            {Object.values(PaymentMethod).filter(m => m !== PaymentMethod.Expense).map(m => <option key={m} value={m}>{m}</option>)}
+                        </select>
                     </div>
                     <div className="flex justify-end pt-4">
                         <button type="submit" className="bg-indigo-500 text-white px-4 py-2 rounded-lg hover:bg-indigo-600">Adicionar Despesa</button>

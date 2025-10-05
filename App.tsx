@@ -7,14 +7,17 @@ import Suppliers from './components/pages/Suppliers';
 import Inventory from './components/pages/Inventory';
 import Purchases from './components/pages/Purchases';
 import Sales from './components/pages/Sales';
-import Settings from './components/pages/Settings'; // Import the Settings component
+import Expenses from './components/pages/Expenses';
+import Cash from './components/pages/Cash';
+import Settings from './components/pages/Settings';
 import { AppProvider, useAppContext } from './context/AppContext';
+import { ThemeProvider } from './context/ThemeContext'; // Importa o ThemeProvider
 import LoadingSpinner from './components/ui/LoadingSpinner';
-import Auth from './components/auth/Auth'; // Importa o componente de autenticação
-import { auth } from './firebase'; // Importa a instância de auth do firebase
+import Auth from './components/auth/Auth';
+import { auth } from './firebase';
 import { User } from 'firebase/auth';
 
-export type View = 'dashboard' | 'sales' | 'purchases' | 'inventory' | 'customers' | 'suppliers' | 'settings'; // Adicionei 'settings'
+export type View = 'dashboard' | 'sales' | 'purchases' | 'inventory' | 'customers' | 'suppliers' | 'expenses' | 'cash' | 'settings';
 
 const MainApp: React.FC = () => {
     const [currentView, setCurrentView] = useState<View>('dashboard');
@@ -38,7 +41,11 @@ const MainApp: React.FC = () => {
                 return <Customers />;
             case 'suppliers':
                 return <Suppliers />;
-            case 'settings': // Render the Settings component
+            case 'expenses':
+                return <Expenses />;
+            case 'cash':
+                return <Cash />;
+            case 'settings':
                 return <Settings />;
             default:
                 return <Dashboard />;
@@ -82,7 +89,9 @@ const App: React.FC = () => {
 
     return (
         <AppProvider>
-            <MainApp />
+            <ThemeProvider>
+                <MainApp />
+            </ThemeProvider>
         </AppProvider>
     );
 };

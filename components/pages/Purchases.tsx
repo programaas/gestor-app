@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useAppContext } from '../../context/AppContext';
 import Modal from '../ui/Modal';
 import { PlusCircle, Package, Edit, Trash2 } from 'lucide-react';
+import { formatCurrency } from '../../utils/formatters';
 
 interface PurchaseFormState {
     id?: string; // Optional for new purchases, required for editing
@@ -97,8 +98,6 @@ const Purchases: React.FC = () => {
             deletePurchase(purchaseId);
         }
     };
-
-    const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
     return (
         <div>

@@ -64,7 +64,7 @@ function useFirestore<T>(collectionName: string) {
         }
     };
 
-    return { data, loading, error, addDocument, updateDocument, deleteDocument };
+    return { data, loading, error, addDocument, updateDocument, deleteDocument, setData }; // Retornando setData
 }
 
 export default useFirestore;

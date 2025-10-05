@@ -1,12 +1,13 @@
 
 import React from 'react';
 import { useAppContext } from '../../context/AppContext';
-import { Users, Truck, Package, DollarSign, AlertCircle } from 'lucide-react';
+import { Users, Truck, Package, DollarSign, AlertCircle, TrendingUp, TrendingDown } from 'lucide-react';
+import { formatCurrency } from '../../utils/formatters';
 
-const StatCard: React.FC<{ title: string; value: string | number; icon: React.ElementType }> = ({ title, value, icon: Icon }) => (
-    <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md flex items-center">
-        <div className="bg-indigo-100 dark:bg-indigo-900/50 p-3 rounded-full mr-4">
-            <Icon className="h-6 w-6 text-indigo-500" />
+const StatCard: React.FC<{ title: string; value: string | number; icon: React.ElementType, color?: string }> = ({ title, value, icon: Icon, color = 'indigo' }) => (
+    <div className={`bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md flex items-center`}>
+        <div className={`bg-${color}-100 dark:bg-${color}-900/50 p-3 rounded-full mr-4`}>
+            <Icon className={`h-6 w-6 text-${color}-500`} />
         </div>
         <div>
             <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{title}</p>
@@ -16,35 +17,33 @@ const StatCard: React.FC<{ title: string; value: string | number; icon: React.El
 );
 
 const Dashboard: React.FC = () => {
-    const { customers, suppliers, products, sales } = useAppContext();
+    const { customers, suppliers, products, sales, expenses } = useAppContext();
 
-    const totalRevenue = sales.reduce((acc, sale) => acc + (sale.quantity * sale.unitPrice), 0);
+    const totalRevenue = sales.reduce((acc, sale) => acc + sale.totalAmount, 0);
+    const totalProfit = sales.reduce((acc, sale) => acc + sale.totalProfit, 0);
+    const totalExpenses = expenses.reduce((acc, expense) => acc + expense.amount, 0);
+    const netProfit = totalProfit - totalExpenses;
     const totalCustomerDebt = customers.reduce((acc, customer) => acc + customer.balance, 0);
     const lowStockProducts = products.filter(p => p.quantity <= 5).length;
-
-    const formatCurrency = (value: number) => {
-        return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
-    };
 
     return (
         <div>
             <h1 className="text-3xl font-bold mb-6 text-gray-800 dark:text-white">Dashboard</h1>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <StatCard title="Receita Total" value={formatCurrency(totalRevenue)} icon={DollarSign} />
-                <StatCard title="Clientes" value={customers.length} icon={Users} />
+                <StatCard title="Receita Bruta (Vendas)" value={formatCurrency(totalRevenue)} icon={DollarSign} color="green" />
+                <StatCard title="Lucro Bruto (Vendas)" value={formatCurrency(totalProfit)} icon={TrendingUp} color="green"/>
+                <StatCard title="Despesas Totais" value={formatCurrency(totalExpenses)} icon={TrendingDown} color="red" />
+                <StatCard title="Lucro Líquido" value={formatCurrency(netProfit)} icon={DollarSign} color={netProfit >= 0 ? 'blue' : 'red'}/>
+                <StatCard title="Dívida de Clientes" value={formatCurrency(totalCustomerDebt)} icon={Users} />
                 <StatCard title="Fornecedores" value={suppliers.length} icon={Truck} />
                 <StatCard title="Produtos em Estoque" value={products.length} icon={Package} />
-                <StatCard title="Dívida de Clientes" value={formatCurrency(totalCustomerDebt)} icon={DollarSign} />
-                <StatCard title="Produtos com Estoque Baixo" value={lowStockProducts} icon={AlertCircle} />
+                <StatCard title="Estoque Baixo" value={lowStockProducts} icon={AlertCircle} color="yellow"/>
             </div>
 
              <div className="mt-8 bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
                 <h2 className="text-xl font-bold mb-4">Bem-vindo ao seu Gestor de Negócios!</h2>
                 <p className="text-gray-600 dark:text-gray-300">
-                    Use o menu à esquerda para navegar pelas seções. Você pode registrar novas vendas, compras, gerenciar seu estoque, clientes e fornecedores.
-                </p>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-4">
-                    <strong>Aviso:</strong> Todos os dados agora são salvos na nuvem usando Firestore. Seus registros estão seguros!
+                    Use o menu à esquerda para navegar pelas seções. Você pode registrar novas vendas, compras, despesas, e gerenciar seu estoque, clientes e fornecedores.
                 </p>
             </div>
         </div>
