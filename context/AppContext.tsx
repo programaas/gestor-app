@@ -1,7 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { firestore } from '../firebase';
-// CORREÇÃO CRÍTICA: Importar de 'firebase/firestore' e não de '../firebase'
 import { 
     collection, 
     getDocs, 
@@ -9,16 +8,25 @@ import {
     writeBatch, 
     deleteDoc, 
     serverTimestamp, 
-    Timestamp, 
-    type FirestoreDataConverter // Importar como tipo
+    Timestamp,
+    runTransaction,
+    type FirestoreDataConverter
 } from 'firebase/firestore';
 
 import {
     Customer, Sale, Purchase, Product, Supplier, CustomerPayment, PaymentMethod
 } from './types';
 
+// --- Tipos para as operações ---
+interface SaleItem {
+    productId: string;
+    quantity: number;
+    unitPrice: number;
+    productName?: string;
+    profit?: number;
+}
+
 // --- CONVERSORES DE DADOS DO FIRESTORE ---
-// Garantem a tipagem correta na leitura e escrita dos dados
 
 const customerConverter: FirestoreDataConverter<Customer> = {
     toFirestore: (customer) => {
@@ -38,9 +46,10 @@ const saleConverter: FirestoreDataConverter<Sale> = {
     },
     fromFirestore: (snapshot, options) => {
         const data = snapshot.data(options);
-        // Garante que o timestamp seja convertido para string ISO
         const date = data.date instanceof Timestamp ? data.date.toDate().toISOString() : new Date().toISOString();
-        return { id: snapshot.id, ...data, date } as Sale;
+        // Garante que totalProfit seja um número
+        const totalProfit = typeof data.totalProfit === 'number' ? data.totalProfit : 0;
+        return { id: snapshot.id, ...data, date, totalProfit } as Sale;
     }
 };
 
@@ -90,6 +99,8 @@ const customerPaymentConverter: FirestoreDataConverter<CustomerPayment> = {
     }
 };
 
+// --- INTERFACE DO CONTEXTO ---
+
 interface AppContextProps {
     customers: Customer[];
     suppliers: Supplier[];
@@ -104,7 +115,8 @@ interface AppContextProps {
     addSupplier: (name: string) => Promise<void>;
     updateSupplier: (id: string, name: string) => Promise<void>;
     deleteSupplier: (id: string) => Promise<void>;
-    addSale: (customerId: string, products: { productId: string; quantity: number; unitPrice: number }[], totalAmount: number) => Promise<void>;
+    addSale: (customerId: string, saleItems: SaleItem[]) => Promise<void>;
+    deleteSale: (saleId: string) => Promise<void>; // <-- FUNÇÃO ADICIONADA
     addPurchase: (supplierId: string, productId: string, quantity: number, unitPrice: number, category: string) => Promise<void>;
     addCustomerPayment: (customerId: string, amount: number, method: PaymentMethod, allocations: { supplierId: string, amount: number }[]) => Promise<void>;
     updateProduct: (id: string, name: string, averageCost: number, quantity: number, category: string) => Promise<void>;
@@ -124,40 +136,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const fetchData = useCallback(async () => {
         setIsLoading(true);
-        console.log("Iniciando busca de dados com conversores...");
         try {
-            // Busca cada coleção individualmente com seu conversor correto
-            const customersSnapshot = await getDocs(collection(firestore, 'customers').withConverter(customerConverter));
-            setCustomers(customersSnapshot.docs.map(doc => doc.data()));
+            const getCollection = async <T,>(name: string, converter: FirestoreDataConverter<T>) => {
+                const snapshot = await getDocs(collection(firestore, name).withConverter(converter));
+                return snapshot.docs.map(doc => doc.data());
+            };
 
-            const suppliersSnapshot = await getDocs(collection(firestore, 'suppliers').withConverter(supplierConverter));
-            setSuppliers(suppliersSnapshot.docs.map(doc => doc.data()));
+            const [customersData, suppliersData, productsData, salesData, purchasesData, paymentsData] = await Promise.all([
+                getCollection('customers', customerConverter),
+                getCollection('suppliers', supplierConverter),
+                getCollection('products', productConverter),
+                getCollection('sales', saleConverter),
+                getCollection('purchases', purchaseConverter),
+                getCollection('customerPayments', customerPaymentConverter)
+            ]);
 
-            const productsSnapshot = await getDocs(collection(firestore, 'products').withConverter(productConverter));
-            setProducts(productsSnapshot.docs.map(doc => doc.data()));
+            setCustomers(customersData);
+            setSuppliers(suppliersData);
+            setProducts(productsData);
+            setSales(salesData);
+            setPurchases(purchasesData);
+            setCustomerPayments(paymentsData);
 
-            const salesSnapshot = await getDocs(collection(firestore, 'sales').withConverter(saleConverter));
-            setSales(salesSnapshot.docs.map(doc => doc.data()));
-
-            const purchasesSnapshot = await getDocs(collection(firestore, 'purchases').withConverter(purchaseConverter));
-            setPurchases(purchasesSnapshot.docs.map(doc => doc.data()));
-
-            const paymentsSnapshot = await getDocs(collection(firestore, 'customerPayments').withConverter(customerPaymentConverter));
-            setCustomerPayments(paymentsSnapshot.docs.map(doc => doc.data()));
-
-            console.log("Todas as coleções carregadas com sucesso.");
         } catch (error) {
             console.error("Erro ao buscar dados:", error);
-            // Opcional: resetar estados para evitar dados parciais
-            setCustomers([]);
-            setSuppliers([]);
-            setProducts([]);
-            setSales([]);
-            setPurchases([]);
-            setCustomerPayments([]);
         } finally {
             setIsLoading(false);
-            console.log("Busca de dados finalizada.");
         }
     }, []);
 
@@ -165,18 +169,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         fetchData();
     }, [fetchData]);
 
-    // As funções de escrita (addCustomer, addSale, etc.) são simplificadas
-    // para usar os conversores, garantindo consistência.
-
     const addCustomer = async (name: string) => {
         const newCustomer: Omit<Customer, 'id'> = { name, balance: 0 };
-        const ref = collection(firestore, 'customers').withConverter(customerConverter);
-        await writeBatch(firestore).set(doc(ref), newCustomer).commit();
+        const ref = doc(collection(firestore, 'customers').withConverter(customerConverter));
+        await writeBatch(firestore).set(ref, newCustomer).commit();
         fetchData();
     };
-    // ... (outras funções de escrita poderiam ser atualizadas de forma similar)
-
-    // Manter as outras funções como estão por enquanto para estabilidade
+    
     const addSupplier = async (name: string) => {
         const batch = writeBatch(firestore);
         const newSupplierRef = doc(collection(firestore, 'suppliers'));
@@ -185,36 +184,83 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         fetchData();
     };
 
-    const addSale = async (customerId: string, saleProducts: { productId: string; quantity: number; unitPrice: number }[], totalAmount: number) => {
-        const batch = writeBatch(firestore);
-        const saleRef = doc(collection(firestore, 'sales'));
-        batch.set(saleRef, { 
-            customerId, 
-            products: saleProducts, 
-            totalAmount, 
-            date: serverTimestamp()
+    // FUNÇÃO ADD SALE CORRIGIDA
+    const addSale = async (customerId: string, saleItems: SaleItem[]) => {
+        await runTransaction(firestore, async (transaction) => {
+            const totalAmount = saleItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+            const totalProfit = saleItems.reduce((sum, item) => sum + (item.profit || 0), 0);
+            
+            // 1. Criar a nova venda
+            const saleRef = doc(collection(firestore, 'sales'));
+            transaction.set(saleRef, {
+                customerId,
+                products: saleItems,
+                totalAmount,
+                totalProfit,
+                date: serverTimestamp()
+            });
+
+            // 2. Atualizar o saldo do cliente
+            const customerRef = doc(firestore, 'customers', customerId);
+            const customerDoc = await transaction.get(customerRef);
+            if (!customerDoc.exists()) throw new Error("Cliente não encontrado!");
+            const newBalance = (customerDoc.data().balance || 0) + totalAmount;
+            transaction.update(customerRef, { balance: newBalance });
+
+            // 3. Atualizar o estoque de cada produto
+            for (const item of saleItems) {
+                const productRef = doc(firestore, 'products', item.productId);
+                const productDoc = await transaction.get(productRef);
+                if (!productDoc.exists()) throw new Error(`Produto ${item.productName} não encontrado!`);
+                
+                const currentQuantity = productDoc.data().quantity || 0;
+                const newQuantity = currentQuantity - item.quantity;
+                if (newQuantity < 0) {
+                    throw new Error(`Estoque insuficiente para ${productDoc.data().name}`);
+                }
+                transaction.update(productRef, { quantity: newQuantity });
+            }
         });
+        await fetchData(); // Re-sincronizar após a transação
+    };
+    
+    // FUNÇÃO DELETESALE IMPLEMENTADA
+    const deleteSale = async (saleId: string) => {
+        await runTransaction(firestore, async (transaction) => {
+            const saleRef = doc(firestore, 'sales', saleId);
+            const saleDoc = await transaction.get(saleRef);
 
-        const customerRef = doc(firestore, 'customers', customerId);
-        const customer = customers.find(c => c.id === customerId);
-        if (customer) {
-            batch.update(customerRef, { balance: customer.balance + totalAmount });
-        }
+            if (!saleDoc.exists()) throw new Error("Venda não encontrada!");
+            const saleData = saleDoc.data() as Sale;
 
-        await batch.commit();
-        fetchData();
+            // 1. Deletar a venda
+            transaction.delete(saleRef);
+
+            // 2. Reverter o saldo do cliente
+            const customerRef = doc(firestore, 'customers', saleData.customerId);
+            const customerDoc = await transaction.get(customerRef);
+            if (customerDoc.exists()) {
+                const newBalance = (customerDoc.data().balance || 0) - saleData.totalAmount;
+                transaction.update(customerRef, { balance: newBalance });
+            }
+
+            // 3. Reverter o estoque dos produtos
+            for (const item of saleData.products) {
+                const productRef = doc(firestore, 'products', item.productId);
+                const productDoc = await transaction.get(productRef);
+                if (productDoc.exists()) {
+                    const newQuantity = (productDoc.data().quantity || 0) + item.quantity;
+                    transaction.update(productRef, { quantity: newQuantity });
+                }
+            }
+        });
+        await fetchData(); // Re-sincronizar após a transação
     };
 
     const addPurchase = async (supplierId: string, productId: string, quantity: number, unitPrice: number, category: string) => {
         const batch = writeBatch(firestore);
         const purchaseRef = doc(collection(firestore, 'purchases'));
-        batch.set(purchaseRef, { 
-            supplierId, 
-            productId, 
-            quantity, 
-            unitPrice, 
-            date: serverTimestamp() 
-        });
+        batch.set(purchaseRef, { supplierId, productId, quantity, unitPrice, date: serverTimestamp() });
 
         const productRef = doc(firestore, 'products', productId);
         const product = products.find(p => p.id === productId);
@@ -226,12 +272,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             const newAverageCost = ((product.averageCost * product.quantity) + (unitPrice * quantity)) / newQuantity;
             batch.update(productRef, { quantity: newQuantity, averageCost: newAverageCost });
         } else {
-            batch.set(productRef, { 
-                name: 'Novo Produto',
-                category, 
-                quantity, 
-                averageCost: unitPrice 
-            });
+            batch.set(productRef, { name: 'Novo Produto', category, quantity, averageCost: unitPrice });
         }
 
         if (supplier) {
@@ -245,13 +286,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const addCustomerPayment = async (customerId: string, amount: number, method: PaymentMethod, allocations: { supplierId: string, amount: number }[]) => {
         const batch = writeBatch(firestore);
         const paymentRef = doc(collection(firestore, 'customerPayments'));
-        batch.set(paymentRef, { 
-            customerId, 
-            amount, 
-            method, 
-            allocatedTo: allocations, 
-            date: serverTimestamp() 
-        });
+        batch.set(paymentRef, { customerId, amount, method, allocatedTo: allocations, date: serverTimestamp() });
 
         const customerRef = doc(firestore, 'customers', customerId);
         const customer = customers.find(c => c.id === customerId);
@@ -304,13 +339,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         fetchData();
     };
 
-
     return (
         <AppContext.Provider value={{
             customers, suppliers, products, sales, purchases, customerPayments, isLoading,
             addCustomer, updateCustomer, deleteCustomer, 
             addSupplier, updateSupplier, deleteSupplier, 
-            addSale, addPurchase, addCustomerPayment,
+            addSale, deleteSale, // DELETESALE EXPOSTO
+            addPurchase, addCustomerPayment,
             updateProduct, deleteProduct
         }}>
             {children}
