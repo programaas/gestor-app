@@ -2,8 +2,6 @@
 // Tipos de dados para o nosso sistema de gestão
 
 // Define a estrutura para um Cliente
-
-// types.ts
 export interface Expense {
     id: string;
     description: string;
@@ -11,7 +9,6 @@ export interface Expense {
     date: string;
   }
 
-  
 export interface Customer {
     id: string;
     name: string;
@@ -39,6 +36,8 @@ export interface SaleProduct {
     productId: string;
     quantity: number;
     unitPrice: number; // Preço no momento da venda
+    productName?: string; // Nome do produto no momento da venda
+    profit?: number;      // Lucro do item no momento da venda
 }
 
 // Define a estrutura de uma Venda
@@ -47,6 +46,7 @@ export interface Sale {
     customerId: string;
     products: SaleProduct[];
     totalAmount: number;
+    totalProfit: number; // Lucro total da venda
     date: string; // Data em formato ISO (e.g., "2023-10-27T10:00:00.000Z")
 }
 
