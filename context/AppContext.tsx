@@ -115,7 +115,7 @@ interface AppContextProps {
     updateSupplier: (id: string, name: string) => Promise<void>;
     deleteSupplier: (id: string) => Promise<void>;
     addSale: (customerId: string, saleItems: SaleItem[]) => Promise<void>;
-    deleteSale: (saleId: string) => Promise<void>; // <-- FUNÇÃO ADICIONADA
+    deleteSale: (saleId: string) => Promise<void>;
     addPurchase: (supplierId: string, productId: string, quantity: number, unitPrice: number, category: string) => Promise<void>;
     addCustomerPayment: (customerId: string, amount: number, method: PaymentMethod, allocations: { supplierId: string, amount: number }[]) => Promise<void>;
     updateProduct: (id: string, name: string, averageCost: number, quantity: number, category: string) => Promise<void>;
@@ -183,13 +183,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         fetchData();
     };
 
-    // FUNÇÃO ADD SALE CORRIGIDA
     const addSale = async (customerId: string, saleItems: SaleItem[]) => {
         await runTransaction(firestore, async (transaction) => {
             const totalAmount = saleItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
             const totalProfit = saleItems.reduce((sum, item) => sum + (item.profit || 0), 0);
             
-            // 1. Criar a nova venda
             const saleRef = doc(collection(firestore, 'sales'));
             transaction.set(saleRef, {
                 customerId,
@@ -199,16 +197,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 date: serverTimestamp()
             });
 
-            // 2. Atualizar o saldo do cliente
-            const customerRef = doc(firestore, 'customers', customerId);
+            const customerRef = doc(firestore, 'customers', customerId).withConverter(customerConverter);
             const customerDoc = await transaction.get(customerRef);
             if (!customerDoc.exists()) throw new Error("Cliente não encontrado!");
             const newBalance = (customerDoc.data().balance || 0) + totalAmount;
             transaction.update(customerRef, { balance: newBalance });
 
-            // 3. Atualizar o estoque de cada produto
             for (const item of saleItems) {
-                const productRef = doc(firestore, 'products', item.productId);
+                const productRef = doc(firestore, 'products', item.productId).withConverter(productConverter);
                 const productDoc = await transaction.get(productRef);
                 if (!productDoc.exists()) throw new Error(`Produto ${item.productName} não encontrado!`);
                 
@@ -220,32 +216,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 transaction.update(productRef, { quantity: newQuantity });
             }
         });
-        await fetchData(); // Re-sincronizar após a transação
+        await fetchData();
     };
     
-    // FUNÇÃO DELETESALE IMPLEMENTADA
     const deleteSale = async (saleId: string) => {
         await runTransaction(firestore, async (transaction) => {
-            const saleRef = doc(firestore, 'sales', saleId);
+            const saleRef = doc(firestore, 'sales', saleId).withConverter(saleConverter);
             const saleDoc = await transaction.get(saleRef);
 
             if (!saleDoc.exists()) throw new Error("Venda não encontrada!");
-            const saleData = saleDoc.data() as Sale;
+            const saleData = saleDoc.data();
 
-            // 1. Deletar a venda
             transaction.delete(saleRef);
 
-            // 2. Reverter o saldo do cliente
-            const customerRef = doc(firestore, 'customers', saleData.customerId);
+            const customerRef = doc(firestore, 'customers', saleData.customerId).withConverter(customerConverter);
             const customerDoc = await transaction.get(customerRef);
             if (customerDoc.exists()) {
                 const newBalance = (customerDoc.data().balance || 0) - saleData.totalAmount;
                 transaction.update(customerRef, { balance: newBalance });
             }
 
-            // 3. Reverter o estoque dos produtos
             for (const item of saleData.products) {
-                const productRef = doc(firestore, 'products', item.productId);
+                const productRef = doc(firestore, 'products', item.productId).withConverter(productConverter);
                 const productDoc = await transaction.get(productRef);
                 if (productDoc.exists()) {
                     const newQuantity = (productDoc.data().quantity || 0) + item.quantity;
@@ -253,7 +245,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 }
             }
         });
-        await fetchData(); // Re-sincronizar após a transação
+        await fetchData();
     };
 
     const addPurchase = async (supplierId: string, productId: string, quantity: number, unitPrice: number, category: string) => {
@@ -343,7 +335,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             customers, suppliers, products, sales, purchases, customerPayments, isLoading,
             addCustomer, updateCustomer, deleteCustomer, 
             addSupplier, updateSupplier, deleteSupplier, 
-            addSale, deleteSale, // DELETESALE EXPOSTO
+            addSale, deleteSale,
             addPurchase, addCustomerPayment,
             updateProduct, deleteProduct
         }}>
