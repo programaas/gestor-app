@@ -32,6 +32,7 @@ const Sales: React.FC = () => {
     const [saleItems, setSaleItems] = useState<SaleItem[]>([]);
     const [currentItem, setCurrentItem] = useState<Partial<SaleItem>>({ productId: '', quantity: 1, unitPrice: 0 });
     const [expandedCustomerId, setExpandedCustomerId] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
 
     const productMap = useMemo(() => new Map(products.map(p => [p.id, p])), [products]);
     const customerMap = useMemo(() => new Map(customers.map(c => [c.id, c.name])), [customers]);
@@ -41,22 +42,24 @@ const Sales: React.FC = () => {
         setSaleItems([]);
         setCurrentItem({ productId: '', quantity: 1, unitPrice: 0 });
         setIsModalOpen(false);
+        setError(null);
     }, []);
 
     const handleAddItem = () => {
+        setError(null);
         const { productId, quantity, unitPrice } = currentItem;
         const numQuantity = toNumber(quantity);
         const numUnitPrice = toNumber(unitPrice);
 
         if (!productId || numQuantity <= 0) {
-            alert('Selecione um produto e insira uma quantidade válida.');
+            setError('Selecione um produto e insira uma quantidade válida.');
             return;
         }
 
         const product = productMap.get(productId);
         if (product) {
             if (numQuantity > toNumber(product.quantity)) {
-                alert(`Estoque insuficiente. Disponível: ${product.quantity}`);
+                setError(`Estoque insuficiente. Disponível: ${product.quantity}`);
                 return;
             }
             const profit = (numUnitPrice - toNumber(product.averageCost)) * numQuantity;
@@ -69,7 +72,7 @@ const Sales: React.FC = () => {
             }]);
             setCurrentItem({ productId: '', quantity: 1, unitPrice: 0 });
         } else {
-            alert("Produto não encontrado. A lista de produtos pode ter sido atualizada.");
+            setError("Produto não encontrado. A lista de produtos pode ter sido atualizada.");
         }
     };
 
@@ -79,16 +82,18 @@ const Sales: React.FC = () => {
 
     const handleAddSale = async (e: React.FormEvent) => {
         e.preventDefault();
+        setError(null);
         if (!selectedCustomer || saleItems.length === 0) {
-            alert('Selecione um cliente e adicione pelo menos um produto.');
+            setError('Selecione um cliente e adicione pelo menos um produto.');
             return;
         }
         try {
             const finalItems = saleItems.map(({ productName, profit, ...item }) => item);
             await addSale(selectedCustomer, finalItems);
             resetForm();
-        } catch (error) {
-            console.error("Falha ao adicionar venda:", error);
+        } catch (err) {
+            console.error("Falha ao adicionar venda:", err);
+            setError('Falha ao registrar a venda. Por favor, tente novamente.');
         }
     };
 
@@ -96,8 +101,9 @@ const Sales: React.FC = () => {
         if (window.confirm('Tem certeza que deseja excluir esta venda? Esta ação não pode ser desfeita.')) {
             try {
                 await deleteSale(saleId);
-            } catch (error) {
-                console.error("Falha ao deletar venda:", error);
+            } catch (err) {
+                console.error("Falha ao deletar venda:", err);
+                setError('Falha ao excluir a venda. Por favor, tente novamente.');
             }
         }
     };
@@ -132,6 +138,7 @@ const Sales: React.FC = () => {
                     Nova Venda
                 </button>
             </div>
+            {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert"><span className="block sm:inline">{error}</span><button onClick={() => setError(null)} className="absolute top-0 bottom-0 right-0 px-4 py-3"><X size={18}/></button></div>}
 
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
                 {sortedCustomerGroups.map(({ customerId, customerName, sales: customerSales }) => {
@@ -178,6 +185,7 @@ const Sales: React.FC = () => {
 
             <Modal isOpen={isModalOpen} onClose={resetForm} title="Registrar Nova Venda">
                 <form onSubmit={handleAddSale} className="space-y-6">
+                    {error && <div className="text-red-500 bg-red-100 dark:bg-red-900/50 p-3 rounded-md">{error}</div>}
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Cliente</label>
                         <select value={selectedCustomer} onChange={e => setSelectedCustomer(e.target.value)} className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm" required>
