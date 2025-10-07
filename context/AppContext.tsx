@@ -35,7 +35,7 @@ const customerConverter: FirestoreDataConverter<Customer> = {
     },
     fromFirestore: (snapshot, options) => {
         const data = snapshot.data(options);
-        return { id: snapshot.id, ...data } as Customer;
+        return { id: snapshot.id, ...data } as unknown as Customer;
     }
 };
 
@@ -47,9 +47,8 @@ const saleConverter: FirestoreDataConverter<Sale> = {
     fromFirestore: (snapshot, options) => {
         const data = snapshot.data(options);
         const date = data.date instanceof Timestamp ? data.date.toDate().toISOString() : new Date().toISOString();
-        // Garante que totalProfit seja um número
         const totalProfit = typeof data.totalProfit === 'number' ? data.totalProfit : 0;
-        return { id: snapshot.id, ...data, date, totalProfit } as Sale;
+        return { id: snapshot.id, ...data, date, totalProfit } as unknown as Sale;
     }
 };
 
@@ -60,7 +59,7 @@ const productConverter: FirestoreDataConverter<Product> = {
     },
     fromFirestore: (snapshot, options) => {
         const data = snapshot.data(options);
-        return { id: snapshot.id, ...data } as Product;
+        return { id: snapshot.id, ...data } as unknown as Product;
     }
 };
 
@@ -71,7 +70,7 @@ const supplierConverter: FirestoreDataConverter<Supplier> = {
     },
     fromFirestore: (snapshot, options) => {
         const data = snapshot.data(options);
-        return { id: snapshot.id, ...data } as Supplier;
+        return { id: snapshot.id, ...data } as unknown as Supplier;
     }
 };
 
@@ -83,7 +82,7 @@ const purchaseConverter: FirestoreDataConverter<Purchase> = {
     fromFirestore: (snapshot, options) => {
         const data = snapshot.data(options);
         const date = data.date instanceof Timestamp ? data.date.toDate().toISOString() : new Date().toISOString();
-        return { id: snapshot.id, ...data, date } as Purchase;
+        return { id: snapshot.id, ...data, date } as unknown as Purchase;
     }
 };
 
@@ -95,7 +94,7 @@ const customerPaymentConverter: FirestoreDataConverter<CustomerPayment> = {
     fromFirestore: (snapshot, options) => {
         const data = snapshot.data(options);
         const date = data.date instanceof Timestamp ? data.date.toDate().toISOString() : new Date().toISOString();
-        return { id: snapshot.id, ...data, date } as CustomerPayment;
+        return { id: snapshot.id, ...data, date } as unknown as CustomerPayment;
     }
 };
 
