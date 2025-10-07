@@ -8,13 +8,14 @@ import Inventory from './components/pages/Inventory';
 import Purchases from './components/pages/Purchases';
 import Sales from './components/pages/Sales';
 import Settings from './components/pages/Settings';
-import Reports from './components/pages/Reports'; // Importa a nova página
+import Reports from './components/pages/Reports';
 import { AppProvider, useAppContext } from './context/AppContext';
 import { ThemeProvider } from './context/ThemeContext'; 
 import LoadingSpinner from './components/ui/LoadingSpinner';
 import Auth from './components/auth/Auth';
 import { auth } from './firebase';
 import { User } from 'firebase/auth';
+import ErrorBoundary from './components/ui/ErrorBoundary'; // Importa o ErrorBoundary
 
 // Adiciona 'reports' ao tipo View
 export type View = 'dashboard' | 'sales' | 'purchases' | 'inventory' | 'customers' | 'suppliers' | 'reports' | 'settings';
@@ -42,7 +43,7 @@ const MainApp: React.FC = () => {
             case 'suppliers':
                 return <Suppliers />;
             case 'reports': // Adiciona o case para a nova view
-                return <Reports />;
+                return <ErrorBoundary><Reports /></ErrorBoundary>;
             case 'settings':
                 return <Settings />;
             default:

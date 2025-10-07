@@ -3,7 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { useAppContext } from '../../context/AppContext';
 import { ResponsiveContainer, LineChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, Line } from 'recharts';
 import { formatCurrency, formatDate } from '../../utils/formatters';
-
+import LoadingSpinner from '../ui/LoadingSpinner';
 
 interface ChartData {
     date: string;
@@ -27,7 +27,7 @@ interface CustomerAnalysisData {
 }
 
 const Reports: React.FC = () => {
-    const { sales, products, customers } = useAppContext();
+    const { sales, products, customers, isLoading } = useAppContext();
 
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
@@ -35,11 +35,13 @@ const Reports: React.FC = () => {
     const [selectedCustomer, setSelectedCustomer] = useState('');
 
     const uniqueCategories = useMemo(() => {
+        if (!products) return [];
         const categories = new Set(products.map(p => p.category || 'N/A').filter(c => c !== 'N/A'));
         return ['', ...Array.from(categories)];
     }, [products]);
 
     const filteredSales = useMemo(() => {
+        if (!sales) return [];
         return sales.filter(sale => {
             if (!sale || !sale.date) return false;
             const saleDate = new Date(sale.date);
@@ -71,22 +73,27 @@ const Reports: React.FC = () => {
     }, [filteredSales]);
 
     const productPerformanceData = useMemo(() => {
+        if (!products) return [];
         const performance: Record<string, ProductPerformanceData> = {};
         filteredSales.forEach(sale => {
-            sale.products.forEach(item => {
-                const product = products.find(p => p.id === item.productId);
-                if (!product || (selectedCategory && product.category !== selectedCategory)) return;
-                if (!performance[item.productId]) {
-                    performance[item.productId] = { productId: item.productId, productName: product.name, category: product.category || 'N/A', quantitySold: 0, totalValue: 0 };
-                }
-                performance[item.productId].quantitySold += item.quantity;
-                performance[item.productId].totalValue += item.quantity * item.unitPrice;
-            });
+            // Adiciona uma verificação para garantir que sale.products existe e é um array
+            if (sale && Array.isArray(sale.products)) {
+                sale.products.forEach(item => {
+                    const product = products.find(p => p.id === item.productId);
+                    if (!product || (selectedCategory && product.category !== selectedCategory)) return;
+                    if (!performance[item.productId]) {
+                        performance[item.productId] = { productId: item.productId, productName: product.name, category: product.category || 'N/A', quantitySold: 0, totalValue: 0 };
+                    }
+                    performance[item.productId].quantitySold += item.quantity;
+                    performance[item.productId].totalValue += item.quantity * item.unitPrice;
+                });
+            }
         });
         return Object.values(performance).sort((a, b) => b.totalValue - a.totalValue);
     }, [filteredSales, products, selectedCategory]);
 
     const customerAnalysisData = useMemo(() => {
+        if (!customers) return [];
         const analysis: Record<string, CustomerAnalysisData> = {};
         const validSales = filteredSales.filter(sale => 
             sale && sale.customerId && typeof sale.totalAmount === 'number' && sale.date
@@ -128,6 +135,10 @@ const Reports: React.FC = () => {
             return date.toLocaleDateString('pt-BR', { timeZone: 'UTC' });
         } catch (e) { return tick; }
     };
+
+    if (isLoading) {
+        return <LoadingSpinner />;
+    }
 
     return (
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
