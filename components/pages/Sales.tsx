@@ -88,8 +88,7 @@ const Sales: React.FC = () => {
             return;
         }
         try {
-            const finalItems = saleItems.map(({ productName, profit, ...item }) => item);
-            await addSale(selectedCustomer, finalItems);
+            await addSale(selectedCustomer, saleItems);
             resetForm();
         } catch (err) {
             console.error("Falha ao adicionar venda:", err);
