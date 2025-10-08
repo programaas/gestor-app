@@ -199,31 +199,55 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     const addSale = async (customerId: string, saleItems: SaleItem[]) => {
+        // Agrega itens por produto para evitar inconsistências
+        const aggregated = saleItems.reduce((map: Record<string, SaleItem>, it) => {
+            if (!it.productId || it.quantity <= 0) return map;
+            const existing = map[it.productId];
+            if (existing) existing.quantity += it.quantity;
+            else map[it.productId] = { ...it } as SaleItem;
+            return map;
+        }, {});
+
+        const items = Object.values(aggregated);
+        if (!items.length) throw new Error('Nenhum item de produto válido informado.');
+
         await runTransaction(firestore, async (transaction) => {
-            const itemsEnriched = await Promise.all(saleItems.map(async (item) => {
+            // 1) READS FIRST (customer + all products)
+            const customerRef = doc(firestore, 'customers', customerId).withConverter(customerConverter);
+            const customerSnap = await transaction.get(customerRef);
+            if (!customerSnap.exists()) throw new Error('Cliente não encontrado');
+
+            const productSnaps = await Promise.all(items.map(async (item) => {
                 const pRef = doc(firestore, 'products', item.productId).withConverter(productConverter);
-                const pDoc = await transaction.get(pRef);
-                if (!pDoc.exists()) throw new Error('Produto não encontrado');
-                const p = pDoc.data();
-                return { ...item, productName: p.name, profit: (item.unitPrice - (p.averageCost || 0)) * item.quantity } as SaleItem;
+                const pSnap = await transaction.get(pRef);
+                if (!pSnap.exists()) throw new Error(`Produto não encontrado (ID: ${item.productId})`);
+                const p = pSnap.data();
+                const newQty = (p.quantity || 0) - item.quantity;
+                if (newQty < 0) throw new Error(`Estoque insuficiente para ${p.name}`);
+                return { ref: pRef, data: p, item, newQty };
+            }));
+
+            // 2) COMPUTE
+            const itemsEnriched: SaleItem[] = productSnaps.map(({ data: p, item }) => ({
+                ...item,
+                productName: p.name,
+                profit: (item.unitPrice - (p.averageCost || 0)) * item.quantity,
             }));
             const totalAmount = itemsEnriched.reduce((s, i) => s + i.unitPrice * i.quantity, 0);
             const totalProfit = itemsEnriched.reduce((s, i) => s + (i.profit || 0), 0);
+
+            // 3) WRITES AFTER ALL READS
+            // 3.1 Atualiza estoque
+            productSnaps.forEach(({ ref, newQty }) => {
+                transaction.update(ref, { quantity: newQty });
+            });
+
+            // 3.2 Cria venda
             const saleRef = doc(collection(firestore, 'sales'));
             transaction.set(saleRef, { customerId, products: itemsEnriched, totalAmount, totalProfit, date: serverTimestamp() });
 
-            const customerRef = doc(firestore, 'customers', customerId).withConverter(customerConverter);
-            const customerDoc = await transaction.get(customerRef);
-            if (!customerDoc.exists()) throw new Error('Cliente não encontrado');
-            transaction.update(customerRef, { balance: (customerDoc.data().balance || 0) + totalAmount });
-
-            for (const item of itemsEnriched) {
-                const pRef = doc(firestore, 'products', item.productId).withConverter(productConverter);
-                const pDoc = await transaction.get(pRef);
-                const newQuantity = (pDoc.data().quantity || 0) - item.quantity;
-                if (newQuantity < 0) throw new Error(`Estoque insuficiente para ${pDoc.data().name}`);
-                transaction.update(pRef, { quantity: newQuantity });
-            }
+            // 3.3 Atualiza saldo do cliente
+            transaction.update(customerRef, { balance: (customerSnap.data().balance || 0) + totalAmount });
         });
         await fetchData();
     };

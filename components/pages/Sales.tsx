@@ -90,9 +90,10 @@ const Sales: React.FC = () => {
         try {
             await addSale(selectedCustomer, saleItems);
             resetForm();
-        } catch (err) {
+        } catch (err: any) {
             console.error("Falha ao adicionar venda:", err);
-            setError('Falha ao registrar a venda. Por favor, tente novamente.');
+            const msg = (err && (err.message || String(err))) || 'Falha ao registrar a venda. Por favor, tente novamente.';
+            setError(msg);
         }
     };
 
