@@ -17,13 +17,19 @@ const StatCard: React.FC<{ title: string; value: string | number; icon: React.El
 );
 
 const Dashboard: React.FC = () => {
-    const { customers, suppliers, products, sales } = useAppContext(); // REMOVA expenses
+    const { customers, suppliers, products, sales } = useAppContext();
+    const anyCtx = useAppContext() as any;
+    const expenses = anyCtx.expenses || [];
+    const cashTransactions = anyCtx.cashTransactions || [];
 
     const totalRevenue = sales.reduce((acc, sale) => acc + (sale.totalAmount || 0), 0);
     const totalProfit = sales.reduce((acc, sale) => acc + (sale.totalProfit || 0), 0);
-    const totalExpenses = 0; // ou remova essa linha
+    const expenseSum = expenses.filter((e: any) => e.affectsProfit !== false).reduce((s: number, e: any) => s + (e.amount || 0), 0);
+    const withdrawSum = cashTransactions.filter((t: any) => t.type === 'withdraw' && t.affectsProfit !== false).reduce((s: number, t: any) => s + (t.amount || 0), 0);
+    const totalExpenses = expenseSum + withdrawSum;
     const netProfit = totalProfit - totalExpenses;
     const totalCustomerDebt = customers.reduce((acc, customer) => acc + (customer.balance || 0), 0);
+    const totalSuppliersDue = suppliers.reduce((acc, s) => acc + (s.balance || 0), 0);
     const lowStockProducts = products.filter(p => (p.quantity || 0) <= 5).length;
 
     return (
@@ -37,6 +43,7 @@ const Dashboard: React.FC = () => {
                 <StatCard title="Dívida de Clientes" value={formatCurrency(totalCustomerDebt)} icon={Users} />
                 <StatCard title="Fornecedores" value={suppliers.length} icon={Truck} />
                 <StatCard title="Produtos em Estoque" value={products.length} icon={Package} />
+                <StatCard title="A Pagar a Fornecedores" value={formatCurrency(totalSuppliersDue)} icon={Truck} color="orange" />
                 <StatCard title="Estoque Baixo" value={lowStockProducts} icon={AlertCircle} color="yellow"/>
             </div>
 

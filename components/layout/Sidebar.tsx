@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { View } from '../../App';
-import { Home, ShoppingCart, Truck, Package, Users, Briefcase, Settings, BarChart2, Sun, Moon, LogOut } from 'lucide-react';
+import { Home, ShoppingCart, Truck, Package, Users, Briefcase, Settings, BarChart2, Sun, Moon, LogOut, DollarSign } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { auth } from '../../firebase';
 
@@ -53,6 +53,8 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView }) => {
                         <NavItem view="inventory" icon={<Package size={22} />} label="Estoque" />
                         <NavItem view="customers" icon={<Users size={22} />} label="Clientes" />
                         <NavItem view="suppliers" icon={<Briefcase size={22} />} label="Fornecedores" />
+                        <NavItem view="expenses" icon={<DollarSign size={22} />} label="Despesas" />
+                        <NavItem view="cash" icon={<DollarSign size={22} />} label="Caixa" />
                         {/* Ação de clique corrigida para Relatórios */}
                         <NavItem view="reports" icon={<BarChart2 size={22} />} label="Relatórios" />
                         <NavItem view="settings" icon={<Settings size={22} />} label="Configurações" />

@@ -9,6 +9,8 @@ import Purchases from './components/pages/Purchases';
 import Sales from './components/pages/Sales';
 import Settings from './components/pages/Settings';
 import Reports from './components/pages/Reports';
+import Expenses from './components/pages/Expenses';
+import Cash from './components/pages/Cash';
 import { AppProvider, useAppContext } from './context/AppContext';
 import { ThemeProvider } from './context/ThemeContext'; 
 import LoadingSpinner from './components/ui/LoadingSpinner';
@@ -18,7 +20,7 @@ import { User } from 'firebase/auth';
 import ErrorBoundary from './components/ui/ErrorBoundary'; // Importa o ErrorBoundary
 
 // Adiciona 'reports' ao tipo View
-export type View = 'dashboard' | 'sales' | 'purchases' | 'inventory' | 'customers' | 'suppliers' | 'reports' | 'settings';
+export type View = 'dashboard' | 'sales' | 'purchases' | 'inventory' | 'customers' | 'suppliers' | 'expenses' | 'cash' | 'reports' | 'settings';
 
 const MainApp: React.FC = () => {
     const [currentView, setCurrentView] = useState<View>('dashboard');
@@ -44,6 +46,10 @@ const MainApp: React.FC = () => {
                 return <Suppliers />;
             case 'reports': // Adiciona o case para a nova view
                 return <ErrorBoundary><Reports /></ErrorBoundary>;
+            case 'expenses':
+                return <Expenses />;
+            case 'cash':
+                return <Cash />;
             case 'settings':
                 return <Settings />;
             default:

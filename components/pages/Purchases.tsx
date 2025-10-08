@@ -70,9 +70,11 @@ const Purchases: React.FC = () => {
         }
 
         if (editingPurchase) {
-            updatePurchase(id!, isNewProduct ? newProductName : selectedProduct, selectedSupplier, quantity, unitPrice);
+            // updatePurchase(purchaseId, supplierId, productId, quantity, unitPrice)
+            updatePurchase(id!, selectedSupplier, selectedProduct, quantity, unitPrice);
         } else {
-            addPurchase(isNewProduct ? { name: newProductName } : selectedProduct, selectedSupplier, quantity, unitPrice);
+            // addPurchase(supplierId, productId, quantity, unitPrice, category)
+            addPurchase(selectedSupplier, isNewProduct ? '' : selectedProduct, quantity, unitPrice, isNewProduct ? newProductName : '');
         }
         resetForm();
     };
@@ -100,8 +102,6 @@ const Purchases: React.FC = () => {
     };
 
     const getRecipientName = (supplierId: string) => {
-        if (supplierId === '_CAIXA_') return 'Caixa (Transferência Interna)';
-        if (supplierId === '_DESPESAS_') return 'Despesas Gerais';
         const supplier = suppliers.find(s => s.id === supplierId);
         return supplier?.name || 'N/A';
     };
@@ -157,15 +157,15 @@ const Purchases: React.FC = () => {
 
             <Modal isOpen={isModalOpen} onClose={resetForm} title={editingPurchase ? "Editar Lançamento" : "Registrar Novo Lançamento"}>
                 <form onSubmit={handleAddOrUpdatePurchase} className="space-y-4">
-                     <div>
+                    <div>
                         <label className="flex items-center">
                             <input type="checkbox" name="isNewProduct" checked={formState.isNewProduct} onChange={handleChange} className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded" />
-                            <span className="ml-2 text-sm">Cadastrar novo produto/despesa</span>
+                            <span className="ml-2 text-sm">Cadastrar novo produto</span>
                         </label>
                     </div>
                     {formState.isNewProduct ? (
                         <div>
-                            <label className="block text-sm font-medium">Nome do Novo Produto/Despesa</label>
+                            <label className="block text-sm font-medium">Nome do Novo Produto</label>
                             <input type="text" name="newProductName" value={formState.newProductName} onChange={handleChange} className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md" required={formState.isNewProduct} />
                         </div>
                     ) : (
@@ -178,11 +178,9 @@ const Purchases: React.FC = () => {
                         </div>
                     )}
                      <div>
-                        <label className="block text-sm font-medium">Destinatário</label>
+                        <label className="block text-sm font-medium">Fornecedor</label>
                         <select name="selectedSupplier" value={formState.selectedSupplier} onChange={handleChange} className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md" required>
                             <option value="">Selecione o destinatário</option>
-                            <option value="_CAIXA_">Caixa (Transferência Interna)</option>
-                            <option value="_DESPESAS_">Despesas Gerais</option>
                             {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                         </select>
                     </div>

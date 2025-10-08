@@ -29,10 +29,29 @@ interface CustomerAnalysisData {
 const Reports: React.FC = () => {
     const { sales, products, customers, isLoading } = useAppContext();
 
+    // Estados efetivos aplicados
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('');
     const [selectedCustomer, setSelectedCustomer] = useState('');
+
+    // Estados de rascunho para o formulário de filtros
+    const [draftStart, setDraftStart] = useState('');
+    const [draftEnd, setDraftEnd] = useState('');
+    const [draftCategory, setDraftCategory] = useState('');
+    const [draftCustomer, setDraftCustomer] = useState('');
+
+    const applyFilters = () => {
+        setStartDate(draftStart);
+        setEndDate(draftEnd);
+        setSelectedCategory(draftCategory);
+        setSelectedCustomer(draftCustomer);
+    };
+
+    const clearFilters = () => {
+        setDraftStart(''); setDraftEnd(''); setDraftCategory(''); setDraftCustomer('');
+        setStartDate(''); setEndDate(''); setSelectedCategory(''); setSelectedCustomer('');
+    };
 
     const uniqueCategories = useMemo(() => {
         if (!products) return [];
@@ -147,15 +166,19 @@ const Reports: React.FC = () => {
             <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md mb-8">
                 <h2 className="text-xl font-semibold mb-4">Filtros</h2>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="input-style" />
-                    <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="input-style" />
-                    <select value={selectedCategory} onChange={e => setSelectedCategory(e.target.value)} className="input-style">
+                    <input type="date" value={draftStart} onChange={e => setDraftStart(e.target.value)} className="input-style" />
+                    <input type="date" value={draftEnd} onChange={e => setDraftEnd(e.target.value)} className="input-style" />
+                    <select value={draftCategory} onChange={e => setDraftCategory(e.target.value)} className="input-style">
                         {uniqueCategories.map(cat => <option key={cat} value={cat}>{cat || 'Todas as Categorias'}</option>)}
                     </select>
-                    <select value={selectedCustomer} onChange={e => setSelectedCustomer(e.target.value)} className="input-style">
+                    <select value={draftCustomer} onChange={e => setDraftCustomer(e.target.value)} className="input-style">
                         <option value="">Todos os Clientes</option>
                         {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
+                </div>
+                <div className="mt-4 flex gap-3">
+                    <button onClick={applyFilters} className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">Aplicar filtros</button>
+                    <button onClick={clearFilters} className="bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-4 py-2 rounded hover:bg-gray-300 dark:hover:bg-gray-600">Limpar</button>
                 </div>
             </div>
 

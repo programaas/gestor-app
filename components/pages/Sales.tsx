@@ -167,7 +167,7 @@ const Sales: React.FC = () => {
                                             {customerSales.slice().reverse().map(sale => (
                                                 <tr key={sale.id} className="border-b dark:border-gray-700 last:border-b-0">
                                                     <td className="p-2 align-top">{new Date(sale.date).toLocaleString()}</td>
-                                                    <td className="p-2 align-top"><ul className="list-disc list-inside space-y-1">{(sale.products || []).map((p, index) => (<li key={index}>{productMap.get(p.productId)?.name || 'Produto removido'} ({toNumber(p.quantity)}x {formatCurrency(p.unitPrice)})</li>))}</ul></td>
+                                                    <td className="p-2 align-top"><ul className="list-disc list-inside space-y-1">{(sale.products || []).map((p: any, index: number) => (<li key={index}>{productMap.get(p.productId)?.name || p.productName || 'Produto removido'} ({toNumber(p.quantity)}x {formatCurrency(p.unitPrice)})</li>))}</ul></td>
                                                     <td className="p-2 align-top text-right">{formatCurrency(sale.totalAmount)}</td>
                                                     <td className={`p-2 align-top text-right ${toNumber(sale.totalProfit) >= 0 ? 'text-green-500' : 'text-red-500'}`}>{formatCurrency(sale.totalProfit)}</td>
                                                     <td className="p-2 align-top text-center"><button onClick={() => handleDeleteSale(sale.id)} className="text-red-500 hover:text-red-700"><Trash2 size={16} /></button></td>
