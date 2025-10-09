@@ -21,17 +21,24 @@ const Customers: React.FC = () => {
     const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(PaymentMethod.Pix);
     const [allocations, setAllocations] = useState<{ supplierId: string, amount: number }[]>([]);
     const [cashAllocation, setCashAllocation] = useState<number>(0);
+    const [modalError, setModalError] = useState(''); // For errors inside modals
 
     const handleExportReport = (customer: Customer) => {
         generateCustomerReport(customer, sales, customerPayments, products);
     };
 
-    const handleAddCustomer = (e: React.FormEvent) => {
+    const handleAddCustomer = async (e: React.FormEvent) => {
         e.preventDefault();
+        setModalError('');
         if (newName.trim()) {
-            addCustomer(newName.trim());
-            setNewName('');
-            setAddModalOpen(false);
+            try {
+                await addCustomer(newName.trim());
+                setNewName('');
+                setAddModalOpen(false);
+            } catch (error) {
+                console.error("Failed to add customer:", error);
+                setModalError('Falha ao adicionar cliente. Verifique sua conexão e tente novamente.');
+            }
         }
     };
 
@@ -143,12 +150,13 @@ const Customers: React.FC = () => {
             </div>
 
             {/* Modal: Adicionar Cliente */}
-            <Modal isOpen={isAddModalOpen} onClose={() => setAddModalOpen(false)} title="Adicionar Cliente">
+            <Modal isOpen={isAddModalOpen} onClose={() => { setAddModalOpen(false); setModalError(''); }} title="Adicionar Cliente">
                 <form onSubmit={handleAddCustomer} className="space-y-4">
                     <div>
                         <label className="block text-sm font-medium">Nome</label>
                         <input value={newName} onChange={(e) => setNewName(e.target.value)} className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700" placeholder="Nome do cliente" required />
                     </div>
+                    {modalError && <p className="text-red-500 text-sm text-center">{modalError}</p>}
                     <div className="text-right">
                         <button type="submit" className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">Salvar</button>
                     </div>

@@ -1,5 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Sidebar from './components/layout/Sidebar';
 import Dashboard from './components/pages/Dashboard';
 import Customers from './components/pages/Customers';
@@ -12,51 +12,21 @@ import Reports from './components/pages/Reports';
 import Expenses from './components/pages/Expenses';
 import Cash from './components/pages/Cash';
 import { AppProvider, useAppContext } from './context/AppContext';
-import { ThemeProvider } from './context/ThemeContext'; 
+import { ThemeProvider } from './context/ThemeContext';
 import LoadingSpinner from './components/ui/LoadingSpinner';
 import Auth from './components/auth/Auth';
 import { auth } from './firebase';
 import { User } from 'firebase/auth';
-import ErrorBoundary from './components/ui/ErrorBoundary'; // Importa o ErrorBoundary
+import ErrorBoundary from './components/ui/ErrorBoundary';
 
-// Adiciona 'reports' ao tipo View
-export type View = 'dashboard' | 'sales' | 'purchases' | 'inventory' | 'customers' | 'suppliers' | 'expenses' | 'cash' | 'reports' | 'settings';
-
+// Main application layout
 const MainApp: React.FC = () => {
-    const [currentView, setCurrentView] = useState<View>('dashboard');
     const [isSidebarOpen, setSidebarOpen] = useState(false);
     const { isLoading } = useAppContext();
 
     if (isLoading) {
         return <LoadingSpinner />;
     }
-
-    const renderView = () => {
-        switch (currentView) {
-            case 'dashboard':
-                return <Dashboard />;
-            case 'sales':
-                return <Sales />;
-            case 'purchases':
-                return <Purchases />;
-            case 'inventory':
-                return <Inventory />;
-            case 'customers':
-                return <Customers />;
-            case 'suppliers':
-                return <Suppliers />;
-            case 'reports': // Adiciona o case para a nova view
-                return <ErrorBoundary><Reports /></ErrorBoundary>;
-            case 'expenses':
-                return <Expenses />;
-            case 'cash':
-                return <Cash />;
-            case 'settings':
-                return <Settings />;
-            default:
-                return <Dashboard />;
-        }
-    };
 
     return (
         <div className="flex h-screen bg-gray-100 dark:bg-gray-900 font-sans text-gray-900 dark:text-gray-200">
@@ -70,18 +40,33 @@ const MainApp: React.FC = () => {
             </div>
 
             <Sidebar
-                currentView={currentView}
-                setCurrentView={(v) => { setCurrentView(v); setSidebarOpen(false); }}
                 isOpen={isSidebarOpen}
                 onClose={() => setSidebarOpen(false)}
             />
             <main className="flex-1 px-4 md:px-6 lg:px-8 overflow-y-auto pt-16 md:pt-0">
-                {renderView()}
+                <ErrorBoundary>
+                    <Routes>
+                        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                        <Route path="/dashboard" element={<Dashboard />} />
+                        <Route path="/sales" element={<Sales />} />
+                        <Route path="/purchases" element={<Purchases />} />
+                        <Route path="/inventory" element={<Inventory />} />
+                        <Route path="/customers" element={<Customers />} />
+                        <Route path="/suppliers" element={<Suppliers />} />
+                        <Route path="/reports" element={<Reports />} />
+                        <Route path="/expenses" element={<Expenses />} />
+                        <Route path="/cash" element={<Cash />} />
+                        <Route path="/settings" element={<Settings />} />
+                        {/* Add a fallback route for any unknown paths */}
+                        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                    </Routes>
+                </ErrorBoundary>
             </main>
         </div>
     );
 };
 
+// Root component to handle auth and routing
 const App: React.FC = () => {
     const [user, setUser] = useState<User | null>(null);
     const [authLoading, setAuthLoading] = useState(true);
@@ -103,16 +88,14 @@ const App: React.FC = () => {
         return <LoadingSpinner />;
     }
 
-    if (!user) {
-        return <Auth />;
-    }
-
     return (
-        <AppProvider>
-            <ThemeProvider>
-                <MainApp />
-            </ThemeProvider>
-        </AppProvider>
+        <Router>
+            <AppProvider>
+                <ThemeProvider>
+                    {!user ? <Auth /> : <MainApp />}
+                </ThemeProvider>
+            </AppProvider>
+        </Router>
     );
 };
 

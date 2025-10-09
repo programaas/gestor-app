@@ -40,7 +40,7 @@ function useFirestore<T>(collectionName: string) {
             await addDoc(colRef, newData);
         } catch (err) {
             console.error("Erro ao adicionar documento:", err);
-            // Opcional: poderia retornar o erro para tratamento no componente
+            throw err; // Lança o erro para ser tratado no componente
         }
     };
 
@@ -51,6 +51,7 @@ function useFirestore<T>(collectionName: string) {
             await updateDoc(docRef, updatedData);
         } catch (err) {
             console.error("Erro ao atualizar documento:", err);
+            throw err; // Lança o erro para ser tratado no componente
         }
     };
 
@@ -61,6 +62,7 @@ function useFirestore<T>(collectionName: string) {
             await deleteDoc(docRef);
         } catch (err) {
             console.error("Erro ao deletar documento:", err);
+            throw err; // Lança o erro para ser tratado no componente
         }
     };
 
