@@ -114,7 +114,8 @@ const Customers: React.FC = () => {
             </div>
             
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
-                <table className="w-full text-left">
+                <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
                     <thead className="bg-gray-50 dark:bg-gray-700">
                         <tr>
                             <th className="p-4 font-semibold">Nome</th>
@@ -138,6 +139,7 @@ const Customers: React.FC = () => {
                         ))}
                     </tbody>
                 </table>
+                </div>
             </div>
 
             {/* Modal: Adicionar Cliente */}

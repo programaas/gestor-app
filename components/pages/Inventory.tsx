@@ -66,7 +66,8 @@ const Inventory: React.FC = () => {
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-6">Gestão de Estoque</h1>
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
-                <table className="w-full text-left">
+                <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
                     <thead className="bg-gray-50 dark:bg-gray-700">
                         <tr>
                             <th className="p-4 font-semibold">Produto</th>
@@ -92,6 +93,7 @@ const Inventory: React.FC = () => {
                         ))}
                     </tbody>
                 </table>
+                </div>
             </div>
 
             <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title="Editar Produto">

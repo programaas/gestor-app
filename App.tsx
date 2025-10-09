@@ -24,6 +24,7 @@ export type View = 'dashboard' | 'sales' | 'purchases' | 'inventory' | 'customer
 
 const MainApp: React.FC = () => {
     const [currentView, setCurrentView] = useState<View>('dashboard');
+    const [isSidebarOpen, setSidebarOpen] = useState(false);
     const { isLoading } = useAppContext();
 
     if (isLoading) {
@@ -59,8 +60,22 @@ const MainApp: React.FC = () => {
 
     return (
         <div className="flex h-screen bg-gray-100 dark:bg-gray-900 font-sans text-gray-900 dark:text-gray-200">
-            <Sidebar currentView={currentView} setCurrentView={setCurrentView} />
-            <main className="flex-1 p-6 lg:p-8 overflow-y-auto">
+            <div className="fixed top-0 left-0 right-0 z-30 flex items-center justify-between md:hidden bg-white/80 dark:bg-gray-800/80 backdrop-blur px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+                <button aria-label="Abrir menu" onClick={() => setSidebarOpen(true)} className="p-2 rounded-md bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200">
+                    <span className="sr-only">Abrir menu</span>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                </button>
+                <h1 className="font-semibold">GestorMax</h1>
+                <div className="w-8" />
+            </div>
+
+            <Sidebar
+                currentView={currentView}
+                setCurrentView={(v) => { setCurrentView(v); setSidebarOpen(false); }}
+                isOpen={isSidebarOpen}
+                onClose={() => setSidebarOpen(false)}
+            />
+            <main className="flex-1 px-4 md:px-6 lg:px-8 overflow-y-auto pt-16 md:pt-0">
                 {renderView()}
             </main>
         </div>

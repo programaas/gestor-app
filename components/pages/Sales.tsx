@@ -160,6 +160,7 @@ const Sales: React.FC = () => {
                             </div>
                             {isExpanded && (
                                 <div className="bg-gray-50 dark:bg-gray-900/50 p-3">
+                                    <div className="overflow-x-auto">
                                     <table className="w-full text-left text-sm">
                                         <thead>
                                             <tr className="border-b-2 border-gray-200 dark:border-gray-600"><th className="p-2 font-semibold">Data</th><th className="p-2 font-semibold">Produtos</th><th className="p-2 font-semibold text-right">Valor</th><th className="p-2 font-semibold text-right">Lucro</th><th className="p-2 font-semibold text-center">Ações</th></tr>
@@ -176,6 +177,7 @@ const Sales: React.FC = () => {
                                             ))}
                                         </tbody>
                                     </table>
+                                    </div>
                                 </div>
                             )}
                         </div>
